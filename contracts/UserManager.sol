@@ -1,7 +1,6 @@
 pragma solidity ^0.4.8;
 
 import "./Managed.sol";
-import "./UserStorage.sol";
 
 contract Emitter {
     function cbeUpdate(address key);
@@ -11,14 +10,22 @@ contract Emitter {
 }
 
 contract UserManager is Managed {
-    address userStorage;
+    StorageInterface.UInt req;
+    StorageInterface.UInt ownersCount;
+    StorageInterface.AddressesSet members;
+    StorageInterface.AddressUIntMapping owners;
+    StorageInterface.AddressBytes32Mapping hashes;
 
-    function init(address _userStorage, address _contractsManager) returns (bool) {
-        if (userStorage != 0x0) {
-            return false;
-        }
-        userStorage = _userStorage;
-        UserStorage(userStorage).addMember(msg.sender, true);
+    function UserManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+        req.init('req');
+        ownersCount.init('ownersCount');
+        members.init('members');
+        owners.init('owners');
+        hashes.init('hashes');
+    }
+
+    function init(address _contractsManager) returns (bool) {
+        //UserStorage(userStorage).addMember(msg.sender, true);
         if(contractsManager != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.UserManager,'Users Manager',0x0,0x0))
@@ -58,8 +65,8 @@ contract UserManager is Managed {
     }
 
     function addCBE(address _key, bytes32 _hash) multisig {
-        if (!UserStorage(userStorage).getCBE(_key)) { // Make sure that the key being submitted isn't already CBE
-            if (UserStorage(userStorage).addMember(_key, true) || UserStorage(userStorage).setCBE(_key, true)) {
+        if (!getCBE(_key)) { // Make sure that the key being submitted isn't already CBE
+            if (addMember(_key, true) || setCBE(_key, true)) {
                 setMemberHash(_key, _hash);
                 eventsHistory.cbeUpdate(_key);
             }
@@ -69,8 +76,8 @@ contract UserManager is Managed {
     }
 
     function revokeCBE(address _key) multisig {
-        if (UserStorage(userStorage).getCBE(_key)) { // Make sure that the key being revoked is exist and is CBE
-            UserStorage(userStorage).setCBE(_key, false);
+        if (getCBE(_key)) { // Make sure that the key being revoked is exist and is CBE
+            setCBE(_key, false);
             eventsHistory.cbeUpdate(_key);
         }
         else {
@@ -79,7 +86,7 @@ contract UserManager is Managed {
     }
 
     function createMemberIfNotExist(address key) internal returns (bool) {
-        return UserStorage(userStorage).addMember(key, false);
+        return addMember(key, false);
     }
 
     function setMemberHash(address key, bytes32 _hash) onlyAuthorized returns (bool) {
@@ -91,7 +98,7 @@ contract UserManager is Managed {
         bytes32 oldHash = getMemberHash(key);
         if(!(_hash == oldHash)) {
             eventsHistory.hashUpdate(oldHash, _hash);
-            UserStorage(userStorage).setHashes(key, _hash);
+            setHashes(key, _hash);
             return true;
         }
         _error("Same hash set");
@@ -103,55 +110,75 @@ contract UserManager is Managed {
     }
 
     function setRequired(uint _required) multisig returns (bool) {
-        if (UserStorage(userStorage).setRequired(_required)) {
+            store.set(req,_required);
             eventsHistory.setRequired(_required);
             return true;
-        }
-        _error("Required to high");
-        return false;
+
+        //_error("Required to high");
+        //return false;
+    }
+
+    function addMember(address key, bool isCBE) returns(bool){
+
+    }
+
+    function setCBE(address key, bool isCBE) returns(bool) {
+
+    }
+
+    function setHashes(address key, bytes32 hash) {
+
+    }
+
+    function setExchange(address _member, address _exchange) returns (bool) {
+
+    }
+
+    function setAsset(address _member, address _asset) returns (bool) {
+
     }
 
     function getMemberHash(address key) constant returns (bytes32) {
-        return UserStorage(userStorage).getHash(key);
+        return store.get(hashes,key);
     }
 
     function getCBE(address key) constant returns (bool) {
-        return UserStorage(userStorage).getCBE(key);
+        return store.get(owners,key) != 0;
     }
 
     function getMemberId(address sender) constant returns (uint) {
-        return UserStorage(userStorage).getMemberId(sender);
+        return store.getIndex(members,sender);
     }
 
     function required() constant returns (uint) {
-        return UserStorage(userStorage).required();
+        return store.get(req);
     }
 
     function adminCount() constant returns (uint) {
-        return UserStorage(userStorage).adminCount();
+        return store.get(ownersCount);
     }
 
     function userCount() constant returns (uint) {
-        return UserStorage(userStorage).userCount();
+        return store.count(members);
     }
 
-    function getCBEMembers() constant returns (address[] addresses, bytes32[] hashes) {
-        addresses = new address[](UserStorage(userStorage).adminCount());
-        hashes = new bytes32[](UserStorage(userStorage).adminCount());
-        uint j = 0;
-        address memberAddr;
-        bytes32 hash;
-        bool isCBE;
-        for (uint i = 1; i < UserStorage(userStorage).userCount(); i++) {
-            (memberAddr,hash,isCBE) = UserStorage(userStorage).members(i);
-            if (isCBE) {
-                addresses[j] = memberAddr;
-                hashes[j] = hash;
-                j++;
-            }
-        }
-        return (addresses, hashes);
-    }
+   // function getCBEMembers() constant returns (address[] addresses, bytes32[] hashes) {
+   //     addresses = new address[](adminCount());
+   //     hashes = new bytes32[](adminCount());
+   //     uint j = 0;
+   //     address memberAddr;
+   //     bytes32 hash;
+   //     bool isCBE;
+   //     for (uint i = 1; i < userCount(); i++) {
+   //         (memberAddr,hash,isCBE) = UserStorage(userStorage).members(i);
+   //         if (isCBE) {
+   //             addresses[j] = memberAddr;
+   //             hashes[j] = hash;
+   //             j++;
+   //         }
+   //     }
+   //     return (addresses, hashes);
+   // }
 
     function()
     {

@@ -18,6 +18,20 @@ contract ProxyFactory {
     function createAssetWithFee() returns (address);
 }
 
+contract CrowdsaleManager {
+function createCompain(address _fund,
+bytes32 _symbol,
+string  _reference,
+uint256 _startBlock,
+uint256 _stopBlock,
+uint256 _minValue,
+uint256 _maxValue,
+uint256 _scale,
+uint256 _startRatio,
+uint256 _reductionStep,
+uint256 _reductionValue) returns(address);
+}
+
 contract AssetsManager is Managed {
 
     address platform;
@@ -145,6 +159,10 @@ contract AssetsManager is Managed {
             return token;
         }
         return 0;
+    }
+
+    function startCompain() {
+
     }
 
     function addAssetOwner(bytes32 _symbol, address _owner) onlyAssetOwner(_symbol) returns(bool) {

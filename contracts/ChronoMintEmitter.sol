@@ -30,8 +30,6 @@ library ChronoMintEmitter {
     event UpdLOCStatus(bytes32 indexed locName, uint _oldStatus, uint _newStatus, uint version);
     event UpdLOCValue(bytes32 indexed locName, uint version);
     event Reissue(uint value, bytes32 indexed locName, uint version);
-    // Something went wrong.
-    event Error(bytes32 message, uint version);
 
     function periodClosed(uint periodId) {
         PeriodClosed(periodId, _getVersion());
@@ -78,10 +76,6 @@ library ChronoMintEmitter {
 
     function reissue(uint value, bytes32 locName) {
         Reissue(value, locName, _getVersion());
-    }
-
-    function emitError(bytes32 _message) {
-        Error(_message, _getVersion());
     }
 
     /**

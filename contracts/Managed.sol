@@ -3,8 +3,9 @@ pragma solidity ^0.4.8;
 import {PendingManagerInterface as Shareable} from "./PendingManagerInterface.sol";
 import "./UserManagerInterface.sol";
 import "./ContractsManagerInterface.sol";
+import './EventsHistoryAndStorageAdapter.sol';
 
-contract Managed {
+contract Managed is EventsHistoryAndStorageAdapter {
 
     address public contractsManager;
 

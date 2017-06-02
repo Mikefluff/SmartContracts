@@ -271,6 +271,8 @@ module.exports = (callback) => {
     }).then(() => {
       return eventsHistory.addVersion(chronoMint.address, 'Origin', 'Initial version.')
     }).then(() => {
+      return eventsHistory.addVersion(userManager.address, 'Origin', 'Initial version.')
+    }).then(() => {
       return eventsHistory.addVersion(chronoBankPlatform.address, 'Origin', 'Initial version.')
     }).then(() => {
       return chronoBankPlatform.issueAsset(SYMBOL, 1000000000000, NAME, DESCRIPTION, BASE_UNIT, IS_NOT_REISSUABLE, paramsGas)

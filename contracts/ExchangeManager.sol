@@ -7,6 +7,10 @@ import {ERC20ManagerInterface as ERC20Manager} from "./ERC20ManagerInterface.sol
 import {ERC20Interface as Asset} from "./ERC20Interface.sol";
 import {ContractsManagerInterface as ContractsManager} from "./ContractsManagerInterface.sol";
 
+contract Emitter {
+    function emitError(bytes32 _message);
+}
+
 contract ExchangeManager is Managed {
 
     address[] public exchanges;
@@ -15,8 +19,6 @@ contract ExchangeManager is Managed {
     //Exchanges APIs for rate tracking array
     //string[] public URLs;
     //mapping(bytes32 => bool) URLexsist;
-
-    event Test(address test);
 
     event exchangeRemoved(address user, address exchange);
 
@@ -88,6 +90,7 @@ contract ExchangeManager is Managed {
             owners[_exchange].push(msg.sender);
             return exchanges.length;
         }
+        _error("Can't add exchange");
         return 0;
     }
 
@@ -117,11 +120,8 @@ contract ExchangeManager is Managed {
 
     function createExchange(string _symbol, bool _useTicker) returns(uint) {
         address _erc20Manager = ContractsManager(contractsManager).getContractAddressByType(ContractsManager.ContractType.ERC20Manager);
-        Test(_erc20Manager);
         address tokenAddr = ERC20Manager(_erc20Manager).getTokenAddressBySymbol(_symbol);
-        Test(tokenAddr);
         address rewards = ContractsManager(contractsManager).getContractAddressByType(ContractsManager.ContractType.Rewards);
-        Test(rewards);
         if(tokenAddr != 0x0 && rewards !=  0x0) {
             address exchangeAddr = new Exchange();
             address tickerAddr;
@@ -133,6 +133,7 @@ contract ExchangeManager is Managed {
             owners[exchangeAddr].push(msg.sender);
             return exchanges.length;
         }
+        _error("Can't create new exchange");
         return 0;
     }
 

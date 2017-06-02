@@ -3,7 +3,7 @@ pragma solidity ^0.4.8;
 import "./Owned.sol";
 import {ERC20Interface as Asset} from "./ERC20Interface.sol";
 
-contract Emitter {
+contract ExchangeEmitter {
     function emitError(bytes32 _message);
 }
 
@@ -63,7 +63,7 @@ contract Exchange is Owned {
 
 
     // Should use interface of the emitter, but address of events history.
-    Emitter public eventsHistory;
+    ExchangeEmitter public eventsHistory;
 
     /**
      * Emits Error event with specified error message.
@@ -88,7 +88,7 @@ contract Exchange is Owned {
         if (address(eventsHistory) != 0) {
             return false;
         }
-        eventsHistory = Emitter(_eventsHistory);
+        eventsHistory = ExchangeEmitter(_eventsHistory);
         return true;
     }
 
@@ -186,7 +186,7 @@ contract Exchange is Owned {
             _error("Insufficient token balance");
             return false;
         }
-    
+
         uint total = _mul(_amount, _price);
         if (this.balance < total) {
             _error("Insufficient ether supply");

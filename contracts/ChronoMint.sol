@@ -18,33 +18,30 @@ contract Emitter {
     function emitError(bytes32 _message);
 }
 
-contract ChronoMint is Managed {
+contract LOCManager is Managed {
 
-    mapping (bytes32 => LOC) offeringCompanies;
-    bytes32[] public offeringCompaniesNames;
+    StorageInterface.Set offeringCompaniesNames;
+    StorageInterface.Bytes32Bytes32Mapping website;
+    StorageInterface.Bytes32Bytes32Mapping publishedHash;
+    StorageInterface.Bytes32Bytes32Mapping currency;
+    StorageInterface.Bytes32UIntMapping issued;
+    StorageInterface.Bytes32UIntMapping issueLimit;
+    StorageInterface.Bytes32UIntMapping expDate;
+    StorageInterface.Bytes32UIntMapping status;
+    StorageInterface.Bytes32UIntMapping createDate;
 
     enum Status {maintenance, active, suspended, bankrupt}
 
-    struct LOC {
-    bytes32 name;
-    bytes32 website;
-    uint issued;
-    uint issueLimit;
-    bytes32 publishedHash;
-    uint expDate;
-    Status status;
-    uint securityPercentage;
-    bytes32 currency;
-    uint createDate;
-    }
-
-    function init(address _contractsManager) returns(bool) {
-        if(contractsManager != 0x0)
-        return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.LOCManager,'LOCs Manager',0x0,0x0))
-        return false;
-        contractsManager = _contractsManager;
-        return true;
+    function LOCManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+        offeringCompaniesNames.init('offeringCompaniesNames');
+        website.init('website');
+        publishedHash.init('publishedHash');
+        currency.init('currency');
+        issued.init('issued');
+        issueLimit.init('issueLimit');
+        expDate.init('expDate');
+        status.init('status');
+        createDate.init('createDate');
     }
 
     // Should use interface of the emitter, but address of events history.
@@ -78,13 +75,13 @@ contract ChronoMint is Managed {
     }
 
     modifier locExists(bytes32 _locName) {
-        if (offeringCompanies[_locName].name != bytes32(0)) {
+        if (store.includes(offeringCompaniesNames, _locName)) {
             _;
         }
     }
 
     modifier locDoesNotExist(bytes32 _locName) {
-        if (offeringCompanies[_locName].name == bytes32(0)) {
+        if (!store.includes(offeringCompaniesNames, _locName)) {
             _;
         }
     }
@@ -94,10 +91,10 @@ contract ChronoMint is Managed {
     }
 
     function reissueAsset(uint _value, bytes32 _locName) multisig returns (bool) {
-        uint issued = offeringCompanies[_locName].issued;
-        if(_value <= offeringCompanies[_locName].issueLimit - issued) {
-            if(AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).reissueAsset(offeringCompanies[_locName].currency, _value)) {
-                offeringCompanies[_locName].issued = issued + _value;
+        uint _issued = store.get(issued,_locName);
+        if(_value <= store.get(issueLimit,_locName) - _issued) {
+            if(AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).reissueAsset(store.get(currency,_locName), _value)) {
+                store.set(issued,_locName,_issued + _value);
                 eventsHistory.reissue(_value,_locName);
                 return true;
             }
@@ -106,10 +103,10 @@ contract ChronoMint is Managed {
     }
 
     function revokeAsset(uint _value, bytes32 _locName) multisig returns (bool) {
-        uint issued = offeringCompanies[_locName].issued;
-        if(_value <= issued) {
-            if(AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).revokeAsset(offeringCompanies[_locName].currency, _value)) {
-                offeringCompanies[_locName].issued = issued - _value;
+        uint _issued = store.get(issued,_locName);
+        if(_value <= _issued) {
+            if(AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).revokeAsset(store.get(currency,_locName), _value)) {
+                store.set(issued,_locName,_issued - _value);
                 eventsHistory.reissue(_value, _locName);
                 return true;
             }
@@ -118,109 +115,96 @@ contract ChronoMint is Managed {
     }
 
     function removeLOC(bytes32 _name) locExists(_name) multisig returns (bool) {
-        for (uint i = 0; i < offeringCompaniesNames.length; i++) {
-            if (offeringCompaniesNames[i] == _name) {
-                offeringCompaniesNames[i] = offeringCompaniesNames[offeringCompaniesNames.length - 1];
-                offeringCompaniesNames.length -= 1;
-                break;
-            }
-        }
-        delete offeringCompanies[_name];
-        eventsHistory.remLOC(_name);
+
         return true;
     }
 
     function addLOC(bytes32 _name, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, bytes32 _currency) onlyAuthorized() locDoesNotExist(_name) returns(uint) {
-        offeringCompanies[_name] = LOC({name: _name,website:_website,issued:0,issueLimit:_issueLimit,publishedHash:_publishedHash,expDate:_expDate, status:Status.maintenance,securityPercentage:0, currency:_currency, createDate:now});
-        offeringCompaniesNames.push(_name);
+        store.add(offeringCompaniesNames,_name);
+        store.set(website,_name,_website);
+        store.set(issueLimit,_name,_issueLimit);
+        store.set(publishedHash,_name,_publishedHash);
+        store.set(expDate,_name,_expDate);
+        store.set(currency,_name,_currency);
+        store.set(createDate,_name,now);
         eventsHistory.newLOC(_name);
-        return offeringCompaniesNames.length;
+        return store.count(offeringCompaniesNames);
     }
 
     function setLOC(bytes32 _name, bytes32 _newname, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) returns(bool) {
-        LOC loc = offeringCompanies[_name];
+        if(_name == 0 || _newname == 0)
+            return false;
         bool changed;
         if(!(_newname == _name)) {
-            uint _id;
-            for (uint i = 0; i < offeringCompaniesNames.length; i++) {
-                if (offeringCompaniesNames[i] == loc.name) {
-                    _id = i;
-                    break;
-                }
-            }
-            offeringCompaniesNames[_id] = _newname;
-            loc.name = _newname;
-            offeringCompanies[_newname] = loc;
-            delete offeringCompanies[_name];
+            store.set(offeringCompaniesNames,_name,_newname);
+            _name = _newname;
         }
-        if(!(_website == loc.website)) {
-            loc.website = _website;
-            changed = true;
+        if(!(_website == store.get(website,_name))) {
+            store.set(website,_name,_website);
         }
-        if(!(_issueLimit == loc.issueLimit)) {
-            loc.issueLimit = _issueLimit;
-            changed = true;
+        if(!(_issueLimit == store.get(issueLimit,_name))) {
+            store.set(issueLimit,_name,_issueLimit);
         }
-        if(!(_publishedHash == loc.publishedHash)) {
-            eventsHistory.hashUpdate(loc.publishedHash,_publishedHash);
-            loc.publishedHash = _publishedHash;
-            changed = true;
+        if(!(_publishedHash == store.get(publishedHash,_name))) {
+            eventsHistory.hashUpdate(store.get(publishedHash,_name),_publishedHash);
+
+            store.set(publishedHash,_name,_publishedHash);
         }
-        if(!(_expDate == loc.expDate)) {
-            loc.expDate = _expDate;
-            changed = true;
+        if(!(_expDate == store.get(expDate,_name))) {
+            store.set(expDate,_name,_expDate);
         }
-        if(changed) {
-            offeringCompanies[_name] = loc;
-            eventsHistory.updLOCValue(_name);
-        }
+        eventsHistory.updLOCValue(_name);
         return true;
     }
 
-    function setStatus(bytes32 _name, Status status) locExists(_name) multisig {
-        LOC loc = offeringCompanies[_name];
-        if(!(loc.status == status)) {
-            eventsHistory.updLOCStatus(_name, uint(loc.status), uint(status));
-            loc.status = status;
+    function setStatus(bytes32 _name, Status _status) locExists(_name) multisig {
+        if(!(store.get(status,_name) == uint(_status))) {
+            eventsHistory.updLOCStatus(_name, store.get(status,_name), uint(_status));
+            store.set(status,_name,uint(_status));
         } else {
 
         }
     }
 
-    function getLOCByName(bytes32 _locName) constant returns(bytes32 name,
-    bytes32 website,
+    function getLOCByName(bytes32 _name) constant returns(bytes32 _website,
+    uint _issued,
+    uint _issueLimit,
+    bytes32 _publishedHash,
+    uint _expDate,
+    uint _status,
+    uint _securityPercentage,
+    bytes32 _currency,
+    uint _createDate) {
+        _website = store.get(website,_name);
+        _issued = store.get(issued,_name);
+        _issueLimit = store.get(issueLimit,_name);
+        _publishedHash = store.get(publishedHash,_name);
+        _expDate = store.get(expDate,_name);
+        _status = store.get(status,_name);
+        _currency = store.get(currency,_name);
+        _createDate = store.get(createDate,_name);
+        return (_website, _issued, _issueLimit, _publishedHash, _expDate, _status, 10, _currency, _createDate);
+    }
+
+    function getLOCById(uint _id) constant returns(bytes32 website,
     uint issued,
     uint issueLimit,
     bytes32 publishedHash,
     uint expDate,
-    Status status,
+    uint status,
     uint securityPercentage,
     bytes32 currency,
     uint creatrDate) {
-        LOC loc = offeringCompanies[_locName];
-        return(loc.name, loc.website, loc.issued, loc.issueLimit, loc.publishedHash, loc.expDate, loc.status, loc.securityPercentage, loc.currency, loc.createDate);
+        bytes32 _name = store.get(offeringCompaniesNames,_id);
+        return getLOCByName(_name);
     }
 
-    function getLOCById(uint _id) constant returns(bytes32 name,
-    bytes32 website,
-    uint issued,
-    uint issueLimit,
-    bytes32 publishedHash,
-    uint expDate,
-    Status status,
-    uint securityPercentage,
-    bytes32 currency,
-    uint creatrDate) {
-        LOC loc = offeringCompanies[offeringCompaniesNames[_id]];
-        return(loc.name, loc.website, loc.issued, loc.issueLimit, loc.publishedHash, loc.expDate, loc.status, loc.securityPercentage, loc.currency, loc.createDate);
-    }
-
-    function getLOCNames() constant returns(bytes32[]) {
-        return offeringCompaniesNames;
-    }
+   // function getLOCNames() constant returns(bytes32[]) {
+   //     return offeringCompaniesNames;
+   // }
 
     function getLOCCount() constant returns(uint) {
-        return offeringCompaniesNames.length;
+        return store.count(offeringCompaniesNames);
     }
 
     function()
