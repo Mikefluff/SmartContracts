@@ -44,6 +44,15 @@ contract LOCManager is Managed {
         createDate.init('createDate');
     }
 
+    function init(address _contractsManager) returns(bool) {
+        if(contractsManager != 0x0)
+        return false;
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.LOCManager))
+        return false;
+        contractsManager = _contractsManager;
+        return true;
+    }
+
     // Should use interface of the emitter, but address of events history.
     Emitter public eventsHistory;
 
@@ -134,7 +143,6 @@ contract LOCManager is Managed {
     function setLOC(bytes32 _name, bytes32 _newname, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) returns(bool) {
         if(_name == 0 || _newname == 0)
             return false;
-        bool changed;
         if(!(_newname == _name)) {
             store.set(offeringCompaniesNames,_name,_newname);
             _name = _newname;

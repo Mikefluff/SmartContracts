@@ -10,14 +10,15 @@ var ChronoBankAssetWithFee = artifacts.require("./ChronoBankAssetWithFee.sol");
 var ChronoMintEmitter = artifacts.require("./ChronoMintEmitter.sol");
 var Exchange = artifacts.require("./Exchange.sol");
 var Rewards = artifacts.require("./Rewards.sol");
-var ChronoMint = artifacts.require("./ChronoMint.sol");
+var LOCManager = artifacts.require("./LOCManager.sol");
 var AssetsManager = artifacts.require("./AssetsManager");
 var ContractsManager = artifacts.require("./ContractsManager.sol");
 var ProxyFactory = artifacts.require("./ProxyFactory.sol");
 var ERC20Manager = artifacts.require("./ERC20Manager.sol");
 var ExchangeManager = artifacts.require("./ExchangeManager.sol");
 var UserManager = artifacts.require("./UserManager.sol");
-var UserStorage = artifacts.require("./UserStorage.sol");
+const Storage = artifacts.require('./Storage.sol');
+const ManagerMock = artifacts.require('./ManagerMock.sol');
 var Shareable = artifacts.require("./PendingManager.sol");
 var LOC = artifacts.require("./LOC.sol");
 var TimeHolder = artifacts.require("./TimeHolder.sol");
@@ -64,6 +65,7 @@ contract('ChronoMint', function(accounts) {
   var userStorage;
   var timeHolder;
   var rateTracker;
+  let storage;
   var txId;
   var watcher;
   var loc_contracts = [];
@@ -102,15 +104,15 @@ contract('ChronoMint', function(accounts) {
       return FakeCoin2.deployed()
     }).then(function(instance) {
       coin2 = instance
-      return UserStorage.deployed()
-    }).then(function (instance) {
-      userStorage = instance
-      return instance.addOwner(UserManager.address)
+      return Storage.deployed()
+        .then(instance => storage = instance)
+        .then(() => ManagerMock.deployed())
+        .then(instance => storage.setManager(instance.address))
     }).then(function () {
       return UserManager.deployed()
     }).then(function (instance) {
       userManager = instance
-      return instance.init(UserStorage.address, ContractsManager.address)
+      return instance.init(ContractsManager.address)
     }).then(function () {
       return ContractsManager.deployed()
     }).then(function (instance) {
@@ -120,7 +122,7 @@ contract('ChronoMint', function(accounts) {
       shareable = instance
       return instance.init(ContractsManager.address)
     }).then(function () {
-      return ChronoMint.deployed()
+      return LOCManager.deployed()
     }).then(function (instance) {
       chronoMint = instance
       return instance.init(ContractsManager.address)
@@ -167,11 +169,11 @@ contract('ChronoMint', function(accounts) {
       return rewards.init(ContractsManager.address, 0)
     }).then(function (instance) {
       return rewards.addAsset(ChronoBankAssetWithFeeProxy.address)
-    }).then(function () {
-      return rewards.setupEventsHistory(EventsHistory.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
+  //  }).then(function () {
+  //    return rewards.setupEventsHistory(EventsHistory.address, {
+  //      from: accounts[0],
+  //      gas: 3000000
+  //    });
     }).then(function () {
       return TimeHolder.deployed()
     }).then(function (instance) {
@@ -203,7 +205,7 @@ contract('ChronoMint', function(accounts) {
         from: accounts[0],
         gas: 3000000
       });
-    }).then(function () {
+ /*   }).then(function () {
       return eventsHistory.addEmitter(chronoMintEmitter.contract.newLOC.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {
         from: accounts[0],
         gas: 3000000
@@ -257,8 +259,8 @@ contract('ChronoMint', function(accounts) {
       return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
         from: accounts[0],
         gas: 3000000
-      });
-    }).then(function () {
+      });*/
+  /*  }).then(function () {
       return eventsHistory.addVersion(chronoBankPlatform.address, "Origin", "Initial version.");
     }).then(function () {
       return eventsHistory.addVersion(chronoMint.address, "Origin", "Initial version.");
@@ -327,7 +329,7 @@ contract('ChronoMint', function(accounts) {
         if (error == null) {
           console.log(result.args);
         }
-      })
+      })*/
     }).then(function () {
       //web3.eth.sendTransaction({to: Exchange.address, value: BALANCE_ETH, from: accounts[0]});
       done();

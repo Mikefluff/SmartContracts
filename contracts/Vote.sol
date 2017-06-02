@@ -44,10 +44,14 @@ contract Vote is Managed {
 
     uint public activePollsCount;
 
+    function Vote(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+
+    }
+
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Voting,'Voting',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Voting))
         return false;
         contractsManager = _contractsManager;
         return true;

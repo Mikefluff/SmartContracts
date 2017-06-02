@@ -66,10 +66,14 @@ contract ExchangeManager is Managed {
         return true;
     }
 
+    function ExchangeManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+
+    }
+
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.ExchangeManager,'Exchange Manager',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.ExchangeManager))
         return false;
         contractsManager = _contractsManager;
         return true;

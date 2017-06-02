@@ -6,10 +6,7 @@ contract ContractsManagerInterface {
     function getContractAddressByType(ContractType _type) constant returns (address contractAddress);
     function addContract(
     address _contractAddr,
-    ContractType _type,
-    string _description,
-    bytes32 _ipfsHash,
-    bytes32 _swarmHash)
+    ContractType _type)
     returns(bool);
 }
 

@@ -38,6 +38,7 @@ contract ContractsManager is Managed {
     function ContractsManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
         contractsAddresses.init('contracts');
         contractsTypes.init('contractTypes');
+        contractsManager = this;
     }
 
     /// @dev Returns an array containing all contracts addresses.
@@ -61,7 +62,8 @@ contract ContractsManager is Managed {
     function addContract(
     address _contractAddr,
     ContractType _type)
-    contractDoesNotExist(_contractAddr) returns(bool)
+    contractDoesNotExist(_contractAddr)
+    returns(bool)
     {
         store.add(contractsAddresses,_contractAddr);
         store.set(contractsTypes,uint(_type),_contractAddr);

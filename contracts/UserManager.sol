@@ -28,7 +28,7 @@ contract UserManager is Managed {
         //UserStorage(userStorage).addMember(msg.sender, true);
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.UserManager,'Users Manager',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.UserManager))
         return false;
         contractsManager = _contractsManager;
         return true;

@@ -59,10 +59,14 @@ contract ERC20Manager is Managed {
         }
     }
 
+    function ERC20Manager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+
+    }
+
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.ERC20Manager,'ERC20 Manager',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.ERC20Manager))
         return false;
         contractsManager = _contractsManager;
         return true;

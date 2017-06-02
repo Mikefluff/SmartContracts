@@ -45,7 +45,7 @@ contract PendingManager {
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
             return false;
-        if(!ContractsManager(_contractsManager).addContract(this,ContractsManager.ContractType.PendingManager,'Pending Manager',0x0,0x0))
+        if(!ContractsManager(_contractsManager).addContract(this,ContractsManager.ContractType.PendingManager))
             return false;
         contractsManager = _contractsManager;
         return true;

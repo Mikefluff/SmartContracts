@@ -13,7 +13,7 @@ contract CrowdfundingManager is Managed {
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.CrowdsaleManager,'Crowdsale Manager',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.CrowdsaleManager))
         return false;
         contractsManager = _contractsManager;
         return true;

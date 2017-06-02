@@ -59,13 +59,17 @@ contract AssetsManager is Managed {
         return false;
     }
 
+    function AssetsManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+
+    }
+
     function init(address _platform, address _contractsManager, address _proxyFactory) returns(bool) {
         if (platform != 0x0) {
             return false;
         }
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.AssetsManager,'Assets Manager',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.AssetsManager))
         return false;
         contractsManager = _contractsManager;
         platform = _platform;

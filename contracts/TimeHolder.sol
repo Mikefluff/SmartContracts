@@ -1,10 +1,11 @@
 pragma solidity ^0.4.8;
 
-import "./Managed.sol";
+import "./Owned.sol";
 import "./ListenerInterface.sol";
+import "./ContractsManagerInterface.sol";
 import {ERC20Interface as Asset} from "./ERC20Interface.sol";
 
-contract TimeHolder is Managed {
+contract TimeHolder is Owned {
 
     mapping(address => uint) public shares;
     mapping(uint => address)  public shareholders;
@@ -18,6 +19,8 @@ contract TimeHolder is Managed {
 
     // ERC20 token that acts as shares.
     Asset public sharesContract;
+
+    address public contractsManager;
 
     // User deposited into current period.
     event Deposit(address indexed who, uint indexed amount);
@@ -39,14 +42,14 @@ contract TimeHolder is Managed {
     function init(address _contractsManager, Asset _sharesContract) returns(bool) {
         if(contractsManager != 0x0)
             return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.TimeHolder,'TimeHolder',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.TimeHolder))
             return false;
         contractsManager = _contractsManager;
         sharesContract = _sharesContract;
         return true;
     }
 
-    function addListener(address _listener) onlyAuthorized() returns(bool) {
+    function addListener(address _listener) onlyContractOwner returns(bool) {
         if(listenerIndex[_listener] == uint(0x0)) {
             ListenerInterface(_listener).deposit(this,0,0);
             ListenerInterface(_listener).withdrawn(this,0,0);

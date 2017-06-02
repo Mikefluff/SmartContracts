@@ -1,15 +1,8 @@
 pragma solidity ^0.4.11;
 
-import "./TimeHolder.sol";
+import {TimeHolderInterface as TimeHolder} from "./TimeHolderInterface.sol";
+import {ERC20Interface as Asset} from "./ERC20Interface.sol";
 import "./Managed.sol";
-
-contract Emitter {
-    function periodClosed(uint periodId);
-    function assetRegistration(address assetAddress, uint balance);
-    function calculateReward(address assetAddress, address who, uint reward);
-    function withdrawReward(address assetAddress, address who, uint amount);
-    function emitError(bytes32 _message);
-}
 
 /**
  * @title Universal decentralized ERC20 tokens rewards contract.
@@ -74,6 +67,11 @@ contract Rewards is Managed {
     // Periods list. Last one is always active.
     Period[] public periods;
 
+
+    function Rewards(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+
+    }
+
     /**
      * Sets TimeHolder contract and period minimum length.
      * Starts the first period.
@@ -85,13 +83,14 @@ contract Rewards is Managed {
      *
      * @return success.
      */
+
     function init(address _contractsManager, uint _closeIntervalDays) returns(bool) {
         if (periods.length > 0) {
             return false;
         }
         if(contractsManager != 0x0)
         return false;
-        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Rewards,'Rewards',0x0,0x0))
+        if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Rewards))
         return false;
         contractsManager = _contractsManager;
         closeInterval = _closeIntervalDays;
@@ -99,36 +98,6 @@ contract Rewards is Managed {
         periods[0].shareholdersCount = 1;
         periods[0].startDate = now;
 
-        return true;
-    }
-
-    // Should use interface of the emitter, but address of events history.
-    Emitter public eventsHistory;
-
-    /**
-     * Emits Error event with specified error message.
-     *
-     * Should only be used if no state changes happened.
-     *
-     * @param _message error message.
-     */
-    function _error(bytes32 _message) internal {
-        eventsHistory.emitError(_message);
-    }
-    /**
-     * Sets EventsHstory contract address.
-     *
-     * Can be set only once, and only by contract owner.
-     *
-     * @param _eventsHistory EventsHistory contract address.
-     *
-     * @return success.
-     */
-    function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
-        if (address(eventsHistory) != 0) {
-            return false;
-        }
-        eventsHistory = Emitter(_eventsHistory);
         return true;
     }
 
@@ -223,7 +192,7 @@ contract Rewards is Managed {
         }
         if(periods[lastClosedPeriod()].totalShares == TimeHolder(timeHolder).totalShares()) {
             periods[lastClosedPeriod()].isClosed = true;
-            eventsHistory.periodClosed(lastClosedPeriod());
+            //eventsHistory.periodClosed(lastClosedPeriod());
             return true;
         }
         return false;
@@ -241,19 +210,19 @@ contract Rewards is Managed {
     function registerAsset(Asset _asset) returns(bool) {
         address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         if (TimeHolder(timeHolder).sharesContract() == _asset) {
-            _error("Asset is already registered");
+            //_error("Asset is already registered");
             return false;
         }
         Period period = periods[lastClosedPeriod()];
         if (period.assetBalances[_asset] != 0) {
-            _error("Asset is already registered");
+           // _error("Asset is already registered");
             return false;
         }
 
         period.assetBalances[_asset] = _asset.balanceOf(this) - rewardsLeft[_asset];
         rewardsLeft[_asset] += period.assetBalances[_asset];
 
-        eventsHistory.assetRegistration(_asset, period.assetBalances[_asset]);
+        //eventsHistory.assetRegistration(_asset, period.assetBalances[_asset]);
         return true;
     }
 
@@ -339,12 +308,12 @@ contract Rewards is Managed {
         Period period = periods[_period];
         //if(period.isClosed) {
         if (period.assetBalances[_assetAddress] == 0) {
-            _error("Reward calculation failed");
+           // _error("Reward calculation failed");
             return false;
         }
 
         if (period.calculated[_assetAddress][_address]) {
-            _error("Reward is already calculated");
+            //_error("Reward is already calculated");
             return false;
         }
 
@@ -352,10 +321,10 @@ contract Rewards is Managed {
         rewards[_assetAddress][_address] += reward;
         period.calculated[_assetAddress][_address] = true;
 
-        eventsHistory.calculateReward(_assetAddress, _address, reward);
+        //eventsHistory.calculateReward(_assetAddress, _address, reward);
         return true;
         //}
-        return false;
+        //return false;
     }
 
     /**
@@ -415,7 +384,7 @@ contract Rewards is Managed {
      */
     function withdrawRewardFor(Asset _asset, address _address, uint _amount) returns(bool) {
         if (rewardsLeft[_asset] == 0) {
-            _error("No rewards left");
+           // _error("No rewards left");
             return false;
         }
 
@@ -424,7 +393,7 @@ contract Rewards is Managed {
         // balance before and after transfer, and proceed with the difference.
         uint startBalance = _asset.balanceOf(this);
         if (!_asset.transfer(_address, _amount)) {
-            _error("Asset transfer failed");
+           // _error("Asset transfer failed");
             return false;
         }
 
@@ -437,7 +406,7 @@ contract Rewards is Managed {
         rewards[_asset][_address] -= diff;
         rewardsLeft[_asset] -= diff;
 
-        eventsHistory.withdrawReward(_asset, _address, _amount);
+        //eventsHistory.withdrawReward(_asset, _address, _amount);
         return true;
     }
 
