@@ -124,7 +124,15 @@ contract LOCManager is Managed {
     }
 
     function removeLOC(bytes32 _name) locExists(_name) multisig returns (bool) {
-
+        store.remove(offeringCompaniesNames,_name);
+        store.set(website,_name,0);
+        store.set(issueLimit,_name,0);
+        store.set(issued,_name,0);
+        store.set(createDate,_name,0);
+        store.set(publishedHash,_name,0);
+        store.set(expDate,_name,0);
+        store.set(currency,_name,0);
+        store.set(createDate,_name,0);
         return true;
     }
 
@@ -145,6 +153,12 @@ contract LOCManager is Managed {
             return false;
         if(!(_newname == _name)) {
             store.set(offeringCompaniesNames,_name,_newname);
+            store.set(website,_newname,store.get(website,_name));
+            store.set(issueLimit,_newname,store.get(issueLimit,_name));
+            store.set(publishedHash,_newname,store.get(publishedHash,_name));
+            store.set(expDate,_newname,store.get(expDate,_name));
+            store.set(currency,_newname,store.get(currency,_name));
+            store.set(createDate,_newname,store.get(createDate,_name));
             _name = _newname;
         }
         if(!(_website == store.get(website,_name))) {
@@ -174,7 +188,7 @@ contract LOCManager is Managed {
         }
     }
 
-    function getLOCByName(bytes32 _name) constant returns(bytes32 _website,
+    function getLOCByName(bytes32 _name) constant returns(bytes32 _locName, bytes32 _website,
     uint _issued,
     uint _issueLimit,
     bytes32 _publishedHash,
@@ -191,10 +205,10 @@ contract LOCManager is Managed {
         _status = store.get(status,_name);
         _currency = store.get(currency,_name);
         _createDate = store.get(createDate,_name);
-        return (_website, _issued, _issueLimit, _publishedHash, _expDate, _status, 10, _currency, _createDate);
+        return (_name, _website, _issued, _issueLimit, _publishedHash, _expDate, _status, 10, _currency, _createDate);
     }
 
-    function getLOCById(uint _id) constant returns(bytes32 website,
+    function getLOCById(uint _id) constant returns(bytes32 locName, bytes32 website,
     uint issued,
     uint issueLimit,
     bytes32 publishedHash,
@@ -207,9 +221,9 @@ contract LOCManager is Managed {
         return getLOCByName(_name);
     }
 
-   // function getLOCNames() constant returns(bytes32[]) {
-   //     return offeringCompaniesNames;
-   // }
+    function getLOCNames() constant returns(bytes32[]) {
+        return store.get(offeringCompaniesNames);
+    }
 
     function getLOCCount() constant returns(uint) {
         return store.count(offeringCompaniesNames);

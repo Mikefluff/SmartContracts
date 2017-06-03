@@ -242,6 +242,8 @@ library StorageInterface {
         }
         uint index = uint(get(self, item.indexes, _oldValue));
         set(self, item.values, bytes32(index), _newValue);
+        set(self, item.indexes, _newValue, bytes32(index));
+        set(self, item.indexes, _oldValue, bytes32(0));
     }
 
     function set(Config storage self, AddressesSet storage item, address _oldValue, address _newValue) internal {

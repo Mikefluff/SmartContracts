@@ -260,10 +260,10 @@ contract('ChronoMint', function(accounts) {
         from: accounts[0],
         gas: 3000000
       });*/
-  /*  }).then(function () {
-      return eventsHistory.addVersion(chronoBankPlatform.address, "Origin", "Initial version.");
-    }).then(function () {
-      return eventsHistory.addVersion(chronoMint.address, "Origin", "Initial version.");
+    //}).then(function () {
+    //  return eventsHistory.addVersion(chronoBankPlatform.address, "Origin", "Initial version.");
+    //}).then(function () {
+    //  return eventsHistory.addVersion(chronoMint.address, "Origin", "Initial version.");
     }).then(function () {
       return chronoBankPlatform.issueAsset(SYMBOL, 200000000000, NAME, DESCRIPTION, BASE_UNIT, IS_NOT_REISSUABLE, {
         from: accounts[0],
@@ -320,7 +320,7 @@ contract('ChronoMint', function(accounts) {
       return chronoBankPlatform.changeContractOwnership(assetsManager.address, {from: accounts[0]})
     }).then(function () {
       return assetsManager.claimPlatformOwnership({from: accounts[0]})
-    }).then(function(instance) {
+   /* }).then(function(instance) {
       return ChronoBankPlatformEmitter.at(EventsHistory.address)
     }).then(function (instance) {
       var events = instance.Error({fromBlock: "latest"});
@@ -431,6 +431,12 @@ contract('ChronoMint', function(accounts) {
       });
     });
 
+    it("checks CBE counter is 1.", function() {
+      return userManager.adminCount.call().then(function(r) {
+        assert.equal(r,1);
+      });
+    });
+
     it("doesn't show owner1 as a CBE key.", function() {
       return chronoMint.isAuthorized.call(owner1).then(function(r) {
         assert.isNotOk(r);
@@ -490,6 +496,7 @@ contract('ChronoMint', function(accounts) {
           }
         ).then(function(){
           return chronoMint.getLOCById.call(0).then(function(r2){
+            console.log(r,r2);
             assert.equal(r,1)
             assert.equal(r2[6], Status.maintenance);
           });
@@ -576,6 +583,7 @@ contract('ChronoMint', function(accounts) {
           bytes32("David's Hard Workers"),
           Status.active, {from:owner}).then(function(){
           return chronoMint.getLOCById.call(0).then(function(r2){
+            console.log(r,r2);
             assert.equal(r,false)
             assert.equal(r2[6], Status.active);
           });
@@ -617,6 +625,13 @@ contract('ChronoMint', function(accounts) {
         return userManager.isAuthorized.call(owner1).then(function(r){
           assert.isOk(r);
         });
+      });
+    });
+
+    it("checks CBE counter is 2.", function() {
+      return userManager.adminCount.call().then(function(r) {
+        console.log(r);
+        assert.equal(r,2);
       });
     });
 
@@ -826,7 +841,7 @@ contract('ChronoMint', function(accounts) {
     });
 
     it("can show all members", function () {
-      return userStorage.getCBEMembers.call().then(function (r) {
+      return userManager.getCBEMembers.call().then(function (r) {
         assert.equal(r[0][0], owner);
         assert.equal(r[0][1], owner1);
         assert.equal(r[0][2], owner2);
@@ -870,6 +885,7 @@ contract('ChronoMint', function(accounts) {
         bytes32('LHT')
       ).then(function (r) {
         return chronoMint.getLOCById.call(0).then(function (r) {
+          assert.equal(r[0], bytes32("Bob's Hard Workers"));
           assert.equal(r[6], Status.maintenance);
         });
       });
@@ -877,6 +893,7 @@ contract('ChronoMint', function(accounts) {
 
     it("Proposed LOC should increment LOCs counter", function () {
       return chronoMint.getLOCCount.call().then(function (r) {
+        console.log(r);
         assert.equal(r, 1);
       });
     });

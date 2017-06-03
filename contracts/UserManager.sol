@@ -11,21 +11,19 @@ contract Emitter {
 
 contract UserManager is Managed {
     StorageInterface.UInt req;
-    StorageInterface.UInt ownersCount;
     StorageInterface.AddressesSet members;
-    StorageInterface.AddressUIntMapping owners;
+    StorageInterface.AddressesSet admins;
     StorageInterface.AddressBytes32Mapping hashes;
 
     function UserManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
         req.init('req');
-        ownersCount.init('ownersCount');
+        admins.init('admins');
         members.init('members');
-        owners.init('owners');
         hashes.init('hashes');
     }
 
     function init(address _contractsManager) returns (bool) {
-        //UserStorage(userStorage).addMember(msg.sender, true);
+        addMember(msg.sender, true);
         if(contractsManager != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.UserManager))
@@ -66,7 +64,7 @@ contract UserManager is Managed {
 
     function addCBE(address _key, bytes32 _hash) multisig {
         if (!getCBE(_key)) { // Make sure that the key being submitted isn't already CBE
-            if (addMember(_key, true) || setCBE(_key, true)) {
+            if (addMember(_key, true)) {
                 setMemberHash(_key, _hash);
                 eventsHistory.cbeUpdate(_key);
             }
@@ -118,16 +116,26 @@ contract UserManager is Managed {
         //return false;
     }
 
-    function addMember(address key, bool isCBE) returns(bool){
-
+    function addMember(address key, bool isCBE) internal returns(bool){
+        store.add(members,key);
+        setCBE(key,isCBE);
+        return true;
     }
 
-    function setCBE(address key, bool isCBE) returns(bool) {
-
+    function setCBE(address key, bool isCBE) internal returns(bool) {
+        if(isCBE) {
+            store.add(admins,key);
+        }
+        else {
+            store.remove(admins,key);
+            if(store.get(req) > store.count(admins))
+                store.set(req,store.get(req)-1);
+        }
+        return true;
     }
 
     function setHashes(address key, bytes32 hash) {
-
+        store.set(hashes,key,hash);
     }
 
     function setExchange(address _member, address _exchange) returns (bool) {
@@ -143,7 +151,7 @@ contract UserManager is Managed {
     }
 
     function getCBE(address key) constant returns (bool) {
-        return store.get(owners,key) != 0;
+        return store.includes(admins,key);
     }
 
     function getMemberId(address sender) constant returns (uint) {
@@ -155,30 +163,20 @@ contract UserManager is Managed {
     }
 
     function adminCount() constant returns (uint) {
-        return store.get(ownersCount);
+        return store.count(admins);
     }
 
     function userCount() constant returns (uint) {
         return store.count(members);
     }
 
-   // function getCBEMembers() constant returns (address[] addresses, bytes32[] hashes) {
-   //     addresses = new address[](adminCount());
-   //     hashes = new bytes32[](adminCount());
-   //     uint j = 0;
-   //     address memberAddr;
-   //     bytes32 hash;
-   //     bool isCBE;
-   //     for (uint i = 1; i < userCount(); i++) {
-   //         (memberAddr,hash,isCBE) = UserStorage(userStorage).members(i);
-   //         if (isCBE) {
-   //             addresses[j] = memberAddr;
-   //             hashes[j] = hash;
-   //             j++;
-   //         }
-   //     }
-   //     return (addresses, hashes);
-   // }
+    function getCBEMembers() constant returns (address[] _addresses, bytes32[] _hashes) {
+        _hashes = new bytes32[](adminCount());
+        for (uint i = 0; i < adminCount(); i++) {
+            _hashes[i] = store.get(hashes,store.get(admins,i));
+        }
+        return (store.get(admins), _hashes);
+    }
 
     function()
     {
