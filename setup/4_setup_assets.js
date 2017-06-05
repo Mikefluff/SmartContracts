@@ -195,9 +195,8 @@ module.exports = (callback) => {
     }).then(() => {
       const mintEvents = [
         'newLOC',
-        'remLOC',
-        'updLOCStatus',
-        'updLOCValue',
+        'removeLOC',
+        'updateLOC',
         'reissue',
         'hashUpdate',
         'cbeUpdate'

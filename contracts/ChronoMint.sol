@@ -10,9 +10,8 @@ import "./ChronoBankAssetProxyInterface.sol";
 contract Emitter {
 
     function newLOC(bytes32 locName);
-    function remLOC(bytes32 locName);
-    function updLOCStatus(bytes32 locName, uint _oldStatus, uint _newStatus);
-    function updLOCValue(bytes32 locName);
+    function removeLOC(bytes32 locName);
+    function updateLOC(bytes32 newLocName, bytes32 oldLocName);
     function reissue(uint value, bytes32 locName);
     function hashUpdate(bytes32 oldHash, bytes32 newHash);
     function emitError(bytes32 _message);
@@ -26,23 +25,23 @@ contract ChronoMint is Managed {
     enum Status {maintenance, active, suspended, bankrupt}
 
     struct LOC {
-    bytes32 name;
-    bytes32 website;
-    uint issued;
-    uint issueLimit;
-    bytes32 publishedHash;
-    uint expDate;
-    Status status;
-    uint securityPercentage;
-    bytes32 currency;
-    uint createDate;
+        bytes32 name;
+        bytes32 website;
+        uint issued;
+        uint issueLimit;
+        bytes32 publishedHash;
+        uint expDate;
+        Status status;
+        uint securityPercentage;
+        bytes32 currency;
+        uint createDate;
     }
 
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
-        return false;
+            return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.LOCManager,'LOCs Manager',0x0,0x0))
-        return false;
+            return false;
         contractsManager = _contractsManager;
         return true;
     }
@@ -84,7 +83,7 @@ contract ChronoMint is Managed {
     }
 
     modifier locDoesNotExist(bytes32 _locName) {
-        if (offeringCompanies[_locName].name == bytes32(0)) {
+        if (_locName != 0x0 && offeringCompanies[_locName].name == bytes32(0)) {
             _;
         }
     }
@@ -126,21 +125,32 @@ contract ChronoMint is Managed {
             }
         }
         delete offeringCompanies[_name];
-        eventsHistory.remLOC(_name);
+        eventsHistory.removeLOC(_name);
         return true;
     }
 
-    function addLOC(bytes32 _name, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, bytes32 _currency) onlyAuthorized() locDoesNotExist(_name) returns(uint) {
-        offeringCompanies[_name] = LOC({name: _name,website:_website,issued:0,issueLimit:_issueLimit,publishedHash:_publishedHash,expDate:_expDate, status:Status.maintenance,securityPercentage:0, currency:_currency, createDate:now});
+    function addLOC(bytes32 _name, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, Status _status, bytes32 _currency) onlyAuthorized() locDoesNotExist(_name) returns (bool) {
+        offeringCompanies[_name] = LOC({
+            name: _name,
+            website: _website,
+            issued: 0,
+            issueLimit:_issueLimit,
+            publishedHash: _publishedHash,
+            expDate:_expDate,
+            status: _status,
+            securityPercentage: 0,
+            currency: _currency,
+            createDate: now
+        });
         offeringCompaniesNames.push(_name);
         eventsHistory.newLOC(_name);
-        return offeringCompaniesNames.length;
+        return true;
     }
 
-    function setLOC(bytes32 _name, bytes32 _newname, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) returns(bool) {
+    function setLOC(bytes32 _name, bytes32 _newName, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, Status _status) onlyAuthorized() locExists(_name) returns(bool) {
         LOC loc = offeringCompanies[_name];
-        bool changed;
-        if(!(_newname == _name)) {
+        bool changed = false;
+        if(!(_newName == _name)) {
             uint _id;
             for (uint i = 0; i < offeringCompaniesNames.length; i++) {
                 if (offeringCompaniesNames[i] == loc.name) {
@@ -148,9 +158,9 @@ contract ChronoMint is Managed {
                     break;
                 }
             }
-            offeringCompaniesNames[_id] = _newname;
-            loc.name = _newname;
-            offeringCompanies[_newname] = loc;
+            offeringCompaniesNames[_id] = _newName;
+            loc.name = _newName;
+            offeringCompanies[_newName] = loc;
             delete offeringCompanies[_name];
         }
         if(!(_website == loc.website)) {
@@ -170,21 +180,15 @@ contract ChronoMint is Managed {
             loc.expDate = _expDate;
             changed = true;
         }
+        if(!(_status == loc.status)) {
+            loc.status = _status;
+            changed = true;
+        }
         if(changed) {
             offeringCompanies[_name] = loc;
-            eventsHistory.updLOCValue(_name);
+            eventsHistory.updateLOC(_newName, _name);
         }
-        return true;
-    }
-
-    function setStatus(bytes32 _name, Status status) locExists(_name) multisig {
-        LOC loc = offeringCompanies[_name];
-        if(!(loc.status == status)) {
-            eventsHistory.updLOCStatus(_name, uint(loc.status), uint(status));
-            loc.status = status;
-        } else {
-
-        }
+        return changed;
     }
 
     function getLOCByName(bytes32 _locName) constant returns(bytes32 name,
@@ -196,7 +200,7 @@ contract ChronoMint is Managed {
     Status status,
     uint securityPercentage,
     bytes32 currency,
-    uint creatrDate) {
+    uint createDate) {
         LOC loc = offeringCompanies[_locName];
         return(loc.name, loc.website, loc.issued, loc.issueLimit, loc.publishedHash, loc.expDate, loc.status, loc.securityPercentage, loc.currency, loc.createDate);
     }
@@ -210,7 +214,7 @@ contract ChronoMint is Managed {
     Status status,
     uint securityPercentage,
     bytes32 currency,
-    uint creatrDate) {
+    uint createDate) {
         LOC loc = offeringCompanies[offeringCompaniesNames[_id]];
         return(loc.name, loc.website, loc.issued, loc.issueLimit, loc.publishedHash, loc.expDate, loc.status, loc.securityPercentage, loc.currency, loc.createDate);
     }
