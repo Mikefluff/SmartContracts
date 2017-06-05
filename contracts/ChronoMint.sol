@@ -26,23 +26,23 @@ contract ChronoMint is Managed {
     enum Status {maintenance, active, suspended, bankrupt}
 
     struct LOC {
-    bytes32 name;
-    bytes32 website;
-    uint issued;
-    uint issueLimit;
-    bytes32 publishedHash;
-    uint expDate;
-    Status status;
-    uint securityPercentage;
-    bytes32 currency;
-    uint createDate;
+        bytes32 name;
+        bytes32 website;
+        uint issued;
+        uint issueLimit;
+        bytes32 publishedHash;
+        uint expDate;
+        Status status;
+        uint securityPercentage;
+        bytes32 currency;
+        uint createDate;
     }
 
     function init(address _contractsManager) returns(bool) {
         if(contractsManager != 0x0)
-        return false;
+            return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.LOCManager,'LOCs Manager',0x0,0x0))
-        return false;
+            return false;
         contractsManager = _contractsManager;
         return true;
     }
@@ -84,7 +84,7 @@ contract ChronoMint is Managed {
     }
 
     modifier locDoesNotExist(bytes32 _locName) {
-        if (offeringCompanies[_locName].name == bytes32(0)) {
+        if (_locName != 0x0 && offeringCompanies[_locName].name == bytes32(0)) {
             _;
         }
     }
@@ -130,16 +130,28 @@ contract ChronoMint is Managed {
         return true;
     }
 
-    function addLOC(bytes32 _name, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, bytes32 _currency) onlyAuthorized() locDoesNotExist(_name) returns(uint) {
-        offeringCompanies[_name] = LOC({name: _name,website:_website,issued:0,issueLimit:_issueLimit,publishedHash:_publishedHash,expDate:_expDate, status:Status.maintenance,securityPercentage:0, currency:_currency, createDate:now});
+    function addLOC(bytes32 _name, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, Status _status, bytes32 _currency) onlyAuthorized() locDoesNotExist(_name) returns (bool) {
+        offeringCompanies[_name] = LOC({
+            name: _name,
+            website: _website,
+            issued: 0,
+            issueLimit:_issueLimit,
+            publishedHash: _publishedHash,
+            expDate:_expDate,
+            status: _status,
+//            status: Status.maintenance,
+            securityPercentage: 0,
+            currency: _currency,
+            createDate: now
+        });
         offeringCompaniesNames.push(_name);
         eventsHistory.newLOC(_name);
-        return offeringCompaniesNames.length;
+        return true;
     }
 
     function setLOC(bytes32 _name, bytes32 _newName, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) returns(bool) {
         LOC loc = offeringCompanies[_name];
-        bool changed;
+        bool changed = false;
         if(!(_newName == _name)) {
             uint _id;
             for (uint i = 0; i < offeringCompaniesNames.length; i++) {
@@ -174,7 +186,7 @@ contract ChronoMint is Managed {
             offeringCompanies[_name] = loc;
             eventsHistory.updLOCValue(_newName, _name);
         }
-        return true;
+        return changed;
     }
 
     function setStatus(bytes32 _name, Status status) locExists(_name) multisig {
