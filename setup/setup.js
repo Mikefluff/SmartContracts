@@ -162,6 +162,7 @@ var setup = function (callback) {
     console.log('link addresses')
     return Promise.all([
       storage.setManager(ManagerMock.address),
+      contractsManager.init(),
       userManager.init(ContractsManager.address),
       shareable.init(ContractsManager.address),
       chronoMint.init(ContractsManager.address),
@@ -286,12 +287,6 @@ var setup = function (callback) {
     console.log('assetsManager.claimPlatformOwnership')
     return assetsManager.claimPlatformOwnership({from: accounts[0]})
   }).then(() => {
-    console.log('assetsManager.addAsset TIME')
-    return assetsManager.addAsset(chronoBankAssetProxy.address, TIME_SYMBOL, accounts[0], paramsGas)
-  }).then(() => {
-    console.log('assetsManager.addAsset LHT')
-    return assetsManager.addAsset(chronoBankAssetWithFeeProxy.address, LHT_SYMBOL, chronoMint.address, paramsGas)
-  }).then(() => {
     callback()
   }).catch(function (e) {
     console.log(e)
@@ -301,6 +296,3 @@ var setup = function (callback) {
 module.exports.setup = setup
 module.exports.contractTypes = contractTypes
 
-module.exports = (callback) => {
-  return setup(callback)
-}

@@ -88,11 +88,11 @@ contract Rewards is Managed {
         if (periods.length > 0) {
             return false;
         }
-        if(contractsManager != 0x0)
+        if(store.get(contractsManager) != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Rewards))
         return false;
-        contractsManager = _contractsManager;
+        store.set(contractsManager,_contractsManager);
         closeInterval = _closeIntervalDays;
         periods.length++;
         periods[0].shareholdersCount = 1;
@@ -117,7 +117,7 @@ contract Rewards is Managed {
 
     function periodUnique(uint _period) constant returns(uint) {
         if(_period == lastPeriod()) {
-            address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+            address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
             return TimeHolder(timeHolder).shareholdersCount() - 1;
         }
         else
@@ -125,7 +125,7 @@ contract Rewards is Managed {
     }
 
     modifier onlyTimeHolder() {
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         if (msg.sender == timeHolder) {
             _;
         }
@@ -143,7 +143,7 @@ contract Rewards is Managed {
             //_error("Cannot close period yet");
             return false;
         }
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         // Add new period.
         periods.length++;
         periods[lastPeriod()].startDate = now;
@@ -175,7 +175,7 @@ contract Rewards is Managed {
         if(last >= periods[lastClosedPeriod()].shareholdersCount)
         last = periods[lastClosedPeriod()].shareholdersCount;
         address holder;
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         for(;first < last;first++) {
             holder = TimeHolder(timeHolder).shareholders(first);
             if(periods[lastClosedPeriod()].shares[holder] == 0) {
@@ -208,7 +208,7 @@ contract Rewards is Managed {
     }
 
     function registerAsset(Asset _asset) returns(bool) {
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         if (TimeHolder(timeHolder).sharesContract() == _asset) {
             //_error("Asset is already registered");
             return false;
@@ -438,7 +438,7 @@ contract Rewards is Managed {
      */
     function depositBalanceInPeriod(address _address, uint _period) constant returns(uint) {
         if(_period == lastPeriod()) {
-            address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+            address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
             return TimeHolder(timeHolder).shares(_address);
         }
         return periods[_period].shares[_address];
@@ -453,7 +453,7 @@ contract Rewards is Managed {
      */
     function totalDepositInPeriod(uint _period) constant returns(uint) {
         if(_period == lastPeriod()) {
-            address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+            address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
             return TimeHolder(timeHolder).totalShares();
         }
         return periods[_period].totalShares;

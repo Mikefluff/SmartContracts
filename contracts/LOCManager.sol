@@ -45,11 +45,11 @@ contract LOCManager is Managed {
     }
 
     function init(address _contractsManager) returns(bool) {
-        if(contractsManager != 0x0)
+        if(store.get(contractsManager) != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.LOCManager))
         return false;
-        contractsManager = _contractsManager;
+        store.set(contractsManager,_contractsManager);
         return true;
     }
 
@@ -96,13 +96,13 @@ contract LOCManager is Managed {
     }
 
     function sendAsset(bytes32 _symbol, address _to, uint _value) onlyAuthorized returns (bool) {
-        return AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).sendAsset(_symbol, _to, _value);
+        return AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).sendAsset(_symbol, _to, _value);
     }
 
     function reissueAsset(uint _value, bytes32 _locName) multisig returns (bool) {
         uint _issued = store.get(issued,_locName);
         if(_value <= store.get(issueLimit,_locName) - _issued) {
-            if(AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).reissueAsset(store.get(currency,_locName), _value)) {
+            if(AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).reissueAsset(store.get(currency,_locName), _value)) {
                 store.set(issued,_locName,_issued + _value);
                 eventsHistory.reissue(_value,_locName);
                 return true;
@@ -114,7 +114,7 @@ contract LOCManager is Managed {
     function revokeAsset(uint _value, bytes32 _locName) multisig returns (bool) {
         uint _issued = store.get(issued,_locName);
         if(_value <= _issued) {
-            if(AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).revokeAsset(store.get(currency,_locName), _value)) {
+            if(AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).revokeAsset(store.get(currency,_locName), _value)) {
                 store.set(issued,_locName,_issued - _value);
                 eventsHistory.reissue(_value, _locName);
                 return true;

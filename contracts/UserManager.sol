@@ -24,11 +24,11 @@ contract UserManager is Managed {
 
     function init(address _contractsManager) returns (bool) {
         addMember(msg.sender, true);
-        if(contractsManager != 0x0)
+        if(store.get(contractsManager) != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.UserManager))
         return false;
-        contractsManager = _contractsManager;
+        store.set(contractsManager,_contractsManager);
         return true;
     }
 

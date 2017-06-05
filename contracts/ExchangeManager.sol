@@ -71,11 +71,11 @@ contract ExchangeManager is Managed {
     }
 
     function init(address _contractsManager) returns(bool) {
-        if(contractsManager != 0x0)
+        if(store.get(contractsManager) != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.ExchangeManager))
         return false;
-        contractsManager = _contractsManager;
+        store.set(contractsManager,_contractsManager);
         return true;
     }
 
@@ -123,9 +123,9 @@ contract ExchangeManager is Managed {
     }
 
     function createExchange(string _symbol, bool _useTicker) returns(uint) {
-        address _erc20Manager = ContractsManager(contractsManager).getContractAddressByType(ContractsManager.ContractType.ERC20Manager);
+        address _erc20Manager = ContractsManager(store.get(contractsManager)).getContractAddressByType(ContractsManager.ContractType.ERC20Manager);
         address tokenAddr = ERC20Manager(_erc20Manager).getTokenAddressBySymbol(_symbol);
-        address rewards = ContractsManager(contractsManager).getContractAddressByType(ContractsManager.ContractType.Rewards);
+        address rewards = ContractsManager(store.get(contractsManager)).getContractAddressByType(ContractsManager.ContractType.Rewards);
         if(tokenAddr != 0x0 && rewards !=  0x0) {
             address exchangeAddr = new Exchange();
             address tickerAddr;

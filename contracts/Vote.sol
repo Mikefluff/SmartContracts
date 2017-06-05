@@ -49,11 +49,11 @@ contract Vote is Managed {
     }
 
     function init(address _contractsManager) returns(bool) {
-        if(contractsManager != 0x0)
+        if(store.get(contractsManager) != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Voting))
         return false;
-        contractsManager = _contractsManager;
+        store.set(contractsManager, _contractsManager);
         return true;
     }
 
@@ -75,7 +75,7 @@ contract Vote is Managed {
     }
 
     function getVoteLimit() constant returns (uint) {
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         return TimeHolder(timeHolder).totalSupply() / 10000 * sharesPercent;
     }
 
@@ -175,7 +175,7 @@ contract Vote is Managed {
     //function for user vote. input is a string choice
     function vote(uint _pollId, uint _choice) returns (bool) {
         Poll p = polls[_pollId];
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         if (_choice == 0 || p.status != true || p.active == false || TimeHolder(timeHolder).shares(msg.sender) == 0 || p.memberOption[msg.sender] != 0) {
             return false;
         }
@@ -256,7 +256,7 @@ contract Vote is Managed {
 
     //TimeHolder interface implementation
     modifier onlyTimeHolder() {
-        address timeHolder = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         if (msg.sender == timeHolder) {
             _;
         }

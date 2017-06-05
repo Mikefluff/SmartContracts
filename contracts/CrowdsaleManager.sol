@@ -11,19 +11,19 @@ contract CrowdfundingManager is Managed {
     address[] compains;
 
     function init(address _contractsManager) returns(bool) {
-        if(contractsManager != 0x0)
+        if(store.get(contractsManager) != 0x0)
         return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.CrowdsaleManager))
         return false;
-        contractsManager = _contractsManager;
+        store.set(contractsManager,_contractsManager);
         return true;
     }
 
     function createCompain(address _creator, bytes32 _symbol) returns(address) {
-        AssetsManagerInterface assetsManager = AssetsManagerInterface(ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager));
+        AssetsManagerInterface assetsManager = AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager));
         if(assetsManager.isAssetOwner(_symbol,_creator))
         {
-            address crowdsale = new Crowdsale(contractsManager,_symbol);
+            address crowdsale = new Crowdsale(store.get(contractsManager),_symbol);
             compains.push(crowdsale);
             return crowdsale;
         }

@@ -7,7 +7,11 @@ import './EventsHistoryAndStorageAdapter.sol';
 
 contract Managed is EventsHistoryAndStorageAdapter {
 
-    address public contractsManager;
+    StorageInterface.Address contractsManager;
+
+    function Managed() {
+        contractsManager.init('contractsManager');
+    }
 
     modifier onlyAuthorized() {
         if (isAuthorized(msg.sender)) {
@@ -16,7 +20,7 @@ contract Managed is EventsHistoryAndStorageAdapter {
     }
 
     modifier multisig() {
-        address shareable = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.PendingManager);
+        address shareable = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.PendingManager);
         if (msg.sender != shareable) {
             bytes32 _r = sha3(msg.data);
             Shareable(shareable).addTx(_r, msg.data, this, msg.sender);
@@ -27,7 +31,7 @@ contract Managed is EventsHistoryAndStorageAdapter {
     }
 
     function isAuthorized(address key) returns (bool) {
-        address userManager = ContractsManagerInterface(contractsManager).getContractAddressByType(ContractsManagerInterface.ContractType.UserManager);
+        address userManager = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.UserManager);
         return UserManagerInterface(userManager).getCBE(key);
     }
 
