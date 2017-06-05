@@ -10,9 +10,8 @@ import "./ChronoBankAssetProxyInterface.sol";
 contract Emitter {
 
     function newLOC(bytes32 locName);
-    function remLOC(bytes32 locName);
-    function updLOCStatus(bytes32 locName, uint _oldStatus, uint _newStatus);
-    function updLOCValue(bytes32 newLocName, bytes32 oldLocName);
+    function removeLOC(bytes32 locName);
+    function updateLOC(bytes32 newLocName, bytes32 oldLocName);
     function reissue(uint value, bytes32 locName);
     function hashUpdate(bytes32 oldHash, bytes32 newHash);
     function emitError(bytes32 _message);
@@ -126,7 +125,7 @@ contract ChronoMint is Managed {
             }
         }
         delete offeringCompanies[_name];
-        eventsHistory.remLOC(_name);
+        eventsHistory.removeLOC(_name);
         return true;
     }
 
@@ -139,7 +138,6 @@ contract ChronoMint is Managed {
             publishedHash: _publishedHash,
             expDate:_expDate,
             status: _status,
-//            status: Status.maintenance,
             securityPercentage: 0,
             currency: _currency,
             createDate: now
@@ -149,7 +147,7 @@ contract ChronoMint is Managed {
         return true;
     }
 
-    function setLOC(bytes32 _name, bytes32 _newName, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) returns(bool) {
+    function setLOC(bytes32 _name, bytes32 _newName, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate, Status _status) onlyAuthorized() locExists(_name) returns(bool) {
         LOC loc = offeringCompanies[_name];
         bool changed = false;
         if(!(_newName == _name)) {
@@ -182,21 +180,15 @@ contract ChronoMint is Managed {
             loc.expDate = _expDate;
             changed = true;
         }
+        if(!(_status == loc.status)) {
+            loc.status = _status;
+            changed = true;
+        }
         if(changed) {
             offeringCompanies[_name] = loc;
-            eventsHistory.updLOCValue(_newName, _name);
+            eventsHistory.updateLOC(_newName, _name);
         }
         return changed;
-    }
-
-    function setStatus(bytes32 _name, Status status) locExists(_name) multisig {
-        LOC loc = offeringCompanies[_name];
-        if(!(loc.status == status)) {
-            eventsHistory.updLOCStatus(_name, uint(loc.status), uint(status));
-            loc.status = status;
-        } else {
-
-        }
     }
 
     function getLOCByName(bytes32 _locName) constant returns(bytes32 name,
