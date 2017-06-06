@@ -11,6 +11,7 @@ contract TimeHolderInterface {
     uint public totalShares;
     // ERC20 token that acts as shares.
     Asset public sharesContract;
+    function totalSupply() constant returns(uint);
 
 }
 

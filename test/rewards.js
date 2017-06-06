@@ -1,23 +1,24 @@
-var Rewards = artifacts.require("./Rewards.sol");
-var ContractsManager = artifacts.require("./ContractsManager.sol");
-var EventsHistory = artifacts.require("./EventsHistory.sol");
-var TimeHolder = artifacts.require("./TimeHolder.sol");
-var ChronoMintEmitter = artifacts.require("./ChronoMintEmitter.sol");
-var FakeCoin = artifacts.require("./FakeCoin.sol");
-var FakeCoin2 = artifacts.require("./FakeCoin2.sol");
-var FakeCoin3 = artifacts.require("./FakeCoin3.sol");
-var UserManager = artifacts.require("./UserManager.sol");
-var UserStorage = artifacts.require("./UserStorage.sol");
-var Reverter = require('./helpers/reverter');
-var bytes32 = require('./helpers/bytes32');
-var eventsHelper = require('./helpers/eventsHelper');
+const Rewards = artifacts.require("./Rewards.sol");
+const ContractsManager = artifacts.require("./ContractsManager.sol");
+const EventsHistory = artifacts.require("./EventsHistory.sol");
+const TimeHolder = artifacts.require("./TimeHolder.sol");
+const ChronoMintEmitter = artifacts.require("./ChronoMintEmitter.sol");
+const FakeCoin = artifacts.require("./FakeCoin.sol");
+const FakeCoin2 = artifacts.require("./FakeCoin2.sol");
+const FakeCoin3 = artifacts.require("./FakeCoin3.sol");
+const UserManager = artifacts.require("./UserManager.sol");
+const Storage = artifacts.require("./Storage.sol");
+const ManagerMock = artifacts.require('./ManagerMock.sol');
+const Reverter = require('./helpers/reverter');
+const bytes32 = require('./helpers/bytes32');
+const eventsHelper = require('./helpers/eventsHelper');
 contract('Rewards', (accounts) => {
   let reverter = new Reverter(web3);
   afterEach('revert', reverter.revert);
 
   let reward;
   let timeHolder;
-  let userStorage;
+  let storage;
   let userManager;
   let eventsHistory;
   let chronoMintEmitter;
@@ -29,14 +30,15 @@ contract('Rewards', (accounts) => {
   const ZERO_INTERVAL = 0;
   const SHARES_BALANCE = 1161;
 
-  let defaultInit = () => { return reward.init(contractsManager.address, ZERO_INTERVAL)
-    .then(() => userStorage.addOwner(userManager.address))
-    .then(() => userManager.init(userStorage.address, contractsManager.address))
+  let defaultInit = () => { return storage.setManager(ManagerMock.address)
+    .then(() => contractsManager.init())
+    .then(() => reward.init(contractsManager.address, ZERO_INTERVAL))
+    .then(() => userManager.init(contractsManager.address))
     .then(() => timeHolder.init(contractsManager.address, shares.address))
     .then(() => timeHolder.addListener(reward.address))
-    .then(() => reward.setupEventsHistory(eventsHistory.address))
-    .then(() => eventsHistory.addVersion(reward.address, "Origin", "Initial version."))
-    .then(() => eventsHistory.addEmitter(chronoMintEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), chronoMintEmitter.address))
+   // .then(() => reward.setupEventsHistory(eventsHistory.address))
+    //.then(() => eventsHistory.addVersion(reward.address, "Origin", "Initial version."))
+    //.then(() => eventsHistory.addEmitter(chronoMintEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), chronoMintEmitter.address))
   };
 
   let assertSharesBalance = (address, expectedBalance) => {
@@ -99,8 +101,8 @@ contract('Rewards', (accounts) => {
     timeHolder = instance});
     ContractsManager.deployed().then(function(instance) {
     contractsManager = instance});
-    UserStorage.deployed().then(function(instance) {
-    userStorage = instance});
+    Storage.deployed().then(function(instance) {
+    storage = instance});
     UserManager.deployed().then(function(instance) {
     userManager = instance});
     EventsHistory.deployed().then(function(instance) {
@@ -207,14 +209,15 @@ contract('Rewards', (accounts) => {
 
   // closePeriod() returns(bool)
   it('should not be possible to close period if period.startDate + closeInterval * 1 days > now', () => {
-    return reward.init(contractsManager.address, ZERO_INTERVAL + 1)
-      .then(() => userStorage.addOwner(userManager.address))
-      .then(() => userManager.init(userStorage.address, contractsManager.address))
+    return storage.setManager(ManagerMock.address)
+      .then(() => contractsManager.init())
+      .then(() => reward.init(contractsManager.address, ZERO_INTERVAL + 1))
+      .then(() => userManager.init(contractsManager.address))
       .then(() => timeHolder.init(contractsManager.address, shares.address))
       .then(() => timeHolder.addListener(reward.address))
-      .then(() => reward.setupEventsHistory(eventsHistory.address))
-      .then(() => eventsHistory.addVersion(reward.address, "Origin", "Initial version."))
-      .then(() => eventsHistory.addEmitter(chronoMintEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), chronoMintEmitter.address))
+      //.then(() => reward.setupEventsHistory(eventsHistory.address))
+      //.then(() => eventsHistory.addVersion(reward.address, "Origin", "Initial version."))
+      //.then(() => eventsHistory.addEmitter(chronoMintEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), chronoMintEmitter.address))
       .then(() => reward.closePeriod.call())
       .then((res) => assert.isFalse(res))
       .then(() => reward.closePeriod())

@@ -125,7 +125,7 @@ contract AssetsManager is Managed {
                 if(ChronoBankPlatformInterface(store.get(platform)).isOwner(this,_symbol)) {
                     uint8 decimals = ChronoBankPlatformInterface(store.get(platform)).baseUnit(_symbol);
                     address erc20Manager = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.ERC20Manager);
-                    if(!ERC20Manager(erc20Manager).addToken(asset,'',bytes32ToString(_symbol),'',decimals,bytes32(0), bytes32(0))) {
+                    if(!ERC20Manager(erc20Manager).addToken(asset,'',_symbol,'',decimals,bytes32(0), bytes32(0))) {
 
                     }
                     store.set(assets,_symbol,asset);
@@ -157,7 +157,7 @@ contract AssetsManager is Managed {
             ChronoBankAssetProxyInterface(token).init(store.get(platform), smbl, name);
             ChronoBankAssetProxyInterface(token).proposeUpgrade(asset);
             ChronoBankAsset(asset).init(ChronoBankAssetProxyInterface(token));
-            if(!ERC20Manager(erc20Manager).addToken(token, name, smbl, '', decimals, bytes32(0), bytes32(0))) {
+            if(!ERC20Manager(erc20Manager).addToken(token,stringToBytes32(name), symbol, '', decimals, bytes32(0), bytes32(0))) {
 
             }
             store.set(assets,symbol,token);
@@ -237,6 +237,12 @@ contract AssetsManager is Managed {
             bytesStringTrimmed[j] = bytesString[j];
         }
         return string(bytesStringTrimmed);
+    }
+
+    function stringToBytes32(string memory source) returns (bytes32 result) {
+        assembly {
+            result := mload(add(source, 32))
+        }
     }
 
     function()

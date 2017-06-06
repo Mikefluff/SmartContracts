@@ -11,17 +11,14 @@ contract ContractsManager is Managed {
 
     enum ContractType {LOCManager, PendingManager, UserManager, ERC20Manager, ExchangeManager, TrackersManager, Voting, Rewards, AssetsManager, TimeHolder, CrowdsaleManager}
 
-    event LogAddContract(
-    address contractAddr,
-    ContractType tp
-    );
+    event LogAddContract(address contractAddr, ContractType tp);
 
     struct ContractMetadata {
     address contractAddr;
     ContractType tp;
     }
 
-    event LogContractAddressChange(address oldAddr, address newAddr);
+    event LogContractAddressChange(address contractAddr, ContractType tp);
 
     modifier contractExists(address _contract) {
         if (store.includes(contractsAddresses, _contract)) {
@@ -78,16 +75,16 @@ contract ContractsManager is Managed {
     }
 
     /// @dev Allows owner to modify an existing contract's address.
-    /// @param _contractAddr Address of contract.
+    /// @param _type Type of contract.
     /// @param _newAddr New address of contract.
-    function setContractAddress(address _contractAddr, address _newAddr, ContractType _type)
+    function setContractAddress(address _newAddr, ContractType _type)
     public
     onlyAuthorized()
-    contractExists(_contractAddr)
+    contractDoesNotExist(_newAddr)
     {
         store.set(contractsTypes,uint(_type),_newAddr);
-        store.set(contractsAddresses,_contractAddr,_newAddr);
-        LogContractAddressChange(_contractAddr, _newAddr);
+        store.set(contractsAddresses,store.get(contractsTypes,uint(_type)),_newAddr);
+        LogContractAddressChange(_newAddr,_type);
     }
 
     function()

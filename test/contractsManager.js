@@ -1,34 +1,10 @@
-var FakeCoin = artifacts.require("./FakeCoin.sol");
-var FakeCoin2 = artifacts.require("./FakeCoin2.sol");
-var ChronoBankPlatform = artifacts.require("./ChronoBankPlatform.sol");
-var ChronoBankPlatformEmitter = artifacts.require("./ChronoBankPlatformEmitter.sol");
-var EventsHistory = artifacts.require("./EventsHistory.sol");
-var ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
-var ChronoBankAssetWithFeeProxy = artifacts.require("./ChronoBankAssetWithFeeProxy.sol");
-var ChronoBankAsset = artifacts.require("./ChronoBankAsset.sol");
-var ChronoBankAssetWithFee = artifacts.require("./ChronoBankAssetWithFee.sol");
-var ChronoMintEmitter = artifacts.require("./ChronoMintEmitter.sol");
-var Exchange = artifacts.require("./Exchange.sol");
-var Rewards = artifacts.require("./Rewards.sol");
-var ChronoMint = artifacts.require("./ChronoMint.sol");
-var AssetsManager = artifacts.require("./AssetsManager");
-var ContractsManager = artifacts.require("./ContractsManager.sol");
-var ProxyFactory = artifacts.require("./ProxyFactory.sol");
-var ERC20Manager = artifacts.require("./ERC20Manager.sol");
-var ExchangeManager = artifacts.require("./ExchangeManager.sol");
-var UserManager = artifacts.require("./UserManager.sol");
-var UserStorage = artifacts.require("./UserStorage.sol");
-var Shareable = artifacts.require("./PendingManager.sol");
-var LOC = artifacts.require("./LOC.sol");
-var TimeHolder = artifacts.require("./TimeHolder.sol");
-var RateTracker = artifacts.require("./KrakenPriceTicker.sol");
-var Reverter = require('./helpers/reverter');
-var Vote = artifacts.require("./Vote.sol");
-var bytes32 = require('./helpers/bytes32');
-var bytes32fromBase58 = require('./helpers/bytes32fromBase58');
-var Require = require("truffle-require");
-var Config = require("truffle-config");
-var eventsHelper = require('./helpers/eventsHelper');
+const Setup = require('../setup/setup');
+const Reverter = require('./helpers/reverter');
+const bytes32 = require('./helpers/bytes32');
+const bytes32fromBase58 = require('./helpers/bytes32fromBase58');
+const Require = require("truffle-require");
+const Config = require("truffle-config");
+const eventsHelper = require('./helpers/eventsHelper');
 
 contract('Contracts Manager', function(accounts) {
   var owner = accounts[0];
@@ -38,40 +14,9 @@ contract('Contracts Manager', function(accounts) {
   var owner4 = accounts[4];
   var owner5 = accounts[5];
   var nonOwner = accounts[6];
-  var locController1 = accounts[7];
-  var locController2 = accounts[7];
-  var conf_sign;
-  var conf_sign2;
-  var conf_sign3;
-  var assetsManager;
-  var coin;
-  var coin2;
-  var chronoMint;
-  var chronoMintEmitter;
-  var chronoBankPlatform;
-  var chronoBankPlatformEmitter;
-  var contractsManager;
-  var eventsHistory;
-  var shareable;
-  var platform;
-  var timeContract;
-  var lhContract;
-  var timeProxyContract;
-  var lhProxyContract;
-  var erc20Manager;
-  var exchangeManager;
-  var rewards;
-  var userManager;
-  var userStorage;
-  var timeHolder;
-  var rateTracker;
   var txId;
   var vote;
   var watcher;
-  var loc_contracts = [];
-  var labor_hour_token_contracts = [];
-  var Status = {maintenance:0,active:1, suspended:2, bankrupt:3};
-  var unix = Math.round(+new Date()/1000);
 
   const SYMBOL = 'TIME';
   const SYMBOL2 = 'LHT';
@@ -85,329 +30,80 @@ contract('Contracts Manager', function(accounts) {
   const BALANCE_ETH = 1000;
   const fakeArgs = [0,0,0,0,0,0,0,0];
 
-  const contractTypes = {
-    LOCManager: 0, // LOCManager
-    PendingManager: 1, // PendingManager
-    UserManager: 2, // UserManager
-    ERC20Manager: 3, // ERC20Manager
-    ExchangeManager: 4, // ExchangeManager
-    TrackersManager: 5, // TrackersManager
-    Voting: 6, // Voting
-    Rewards: 7, // Rewards
-    AssetsManager: 8, // AssetsManager
-    TimeHolder:  9 //TimeHolder
-  }
-
   before('setup', function(done) {
-    FakeCoin.deployed().then(function(instance) {
-      coin = instance
-      return FakeCoin2.deployed()
-    }).then(function(instance) {
-      coin2 = instance
-      return UserStorage.deployed()
-    }).then(function (instance) {
-      userStorage = instance
-      return instance.addOwner(UserManager.address)
-    }).then(function () {
-      return UserManager.deployed()
-    }).then(function (instance) {
-      userManager = instance
-      return instance.init(UserStorage.address, ContractsManager.address)
-    }).then(function () {
-      return ContractsManager.deployed()
-    }).then(function (instance) {
-      contractsManager = instance
-      return Shareable.deployed()
-    }).then(function (instance) {
-      shareable = instance
-      return instance.init(ContractsManager.address)
-    }).then(function () {
-      return ChronoMint.deployed()
-    }).then(function (instance) {
-      chronoMint = instance
-      return instance.init(ContractsManager.address)
-    }).then(function () {
-      return ChronoBankPlatform.deployed()
-    }).then(function (instance) {
-      platform = instance
-      return ChronoBankAsset.deployed()
-    }).then(function (instance) {
-      timeContract = instance
-      return ChronoBankAssetWithFee.deployed()
-    }).then(function (instance) {
-      lhContract = instance;
-      return ChronoBankAssetProxy.deployed()
-    }).then(function (instance) {
-      timeProxyContract = instance;
-      return ChronoBankAssetWithFeeProxy.deployed()
-    }).then(function(instance) {
-      lhProxyContract = instance;
-      return ChronoBankPlatform.deployed()
-    }).then(function (instance) {
-      chronoBankPlatform = instance;
-      return Shareable.deployed()
-    }).then(function (instance) {
-      shareable = instance;
-      return AssetsManager.deployed()
-    }).then(function (instance) {
-      assetsManager = instance;
-      return assetsManager.init(chronoBankPlatform.address, contractsManager.address, ProxyFactory.address)
-    }).then(function () {
-      return ERC20Manager.deployed()
-    }).then(function (instance) {
-      erc20Manager = instance;
-      return erc20Manager.init(ContractsManager.address)
-    }).then(function () {
-      return ExchangeManager.deployed()
-    }).then(function (instance) {
-      exchangeManager = instance;
-      return exchangeManager.init(ContractsManager.address)
-    }).then(function () {
-      return Rewards.deployed()
-    }).then(function (instance) {
-      rewards = instance;
-      return rewards.init(ContractsManager.address, 0)
-    }).then(function (instance) {
-      return rewards.addAsset(ChronoBankAssetWithFeeProxy.address)
-    }).then(function () {
-      return rewards.setupEventsHistory(EventsHistory.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return Vote.deployed()
-    }).then(function (instance) {
-      vote = instance;
-      return instance.init(ContractsManager.address)
-    }).then(function () {
-      return TimeHolder.deployed()
-    }).then(function (instance) {
-      timeHolder = instance;
-      return instance.init(ContractsManager.address, ChronoBankAssetProxy.address)
-    }).then(function () {
-      return timeHolder.addListener(rewards.address)
-    }).then(function () {
-      return timeHolder.addListener(vote.address)
-    }).then(function () {
-      return ChronoBankPlatformEmitter.deployed()
-    }).then(function (instance) {
-      chronoBankPlatformEmitter = instance;
-      return ChronoMintEmitter.deployed()
-    }).then(function (instance) {
-      chronoMintEmitter = instance;
-      return EventsHistory.deployed()
-    }).then(function (instance) {
-      eventsHistory = instance;
-      return chronoBankPlatform.setupEventsHistory(EventsHistory.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return chronoMint.setupEventsHistory(EventsHistory.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return userManager.setupEventsHistory(EventsHistory.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoMintEmitter.contract.newLOC.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoMintEmitter.contract.hashUpdate.getData.apply(this, fakeArgs).slice(0, 10), ChronoMintEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitTransfer.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitIssue.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitRevoke.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitOwnershipChange.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitApprove.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitRecovery.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), ChronoBankPlatformEmitter.address, {
-        from: accounts[0],
-        gas: 3000000
-      });
-    }).then(function () {
-      return eventsHistory.addVersion(chronoBankPlatform.address, "Origin", "Initial version.");
-    }).then(function () {
-      return eventsHistory.addVersion(chronoMint.address, "Origin", "Initial version.");
-    }).then(function () {
-      return chronoBankPlatform.issueAsset(SYMBOL, 200000000000, NAME, DESCRIPTION, BASE_UNIT, IS_NOT_REISSUABLE, {
-        from: accounts[0],
-        gas: 3000000
-      })
-    }).then(function (r) {
-      return chronoBankPlatform.setProxy(ChronoBankAssetProxy.address, SYMBOL, {from: accounts[0]})
-    }).then(function (r) {
-      return ChronoBankAssetProxy.deployed()
-    }).then(function (instance) {
-      return instance.init(ChronoBankPlatform.address, SYMBOL, NAME, {from: accounts[0]})
-    }).then(function (r) {
-      return ChronoBankAssetProxy.deployed()
-    }).then(function (instance) {
-      return instance.proposeUpgrade(ChronoBankAsset.address, {from: accounts[0]})
-    }).then(function (r) {
-      return ChronoBankAsset.deployed()
-    }).then(function (instance) {
-      return instance.init(ChronoBankAssetProxy.address, {from: accounts[0]})
-    }).then(function (r) {
-      return ChronoBankAssetProxy.deployed()
-    }).then(function (instance) {
-      return instance.transfer(assetsManager.address, 200000000000, {from: accounts[0]})
-    }).then(function (r) {
-      return chronoBankPlatform.changeOwnership(SYMBOL, assetsManager.address, {from: accounts[0]})
-    }).then(function (r) {
-      return chronoBankPlatform.issueAsset(SYMBOL2, 0, NAME2, DESCRIPTION2, BASE_UNIT, IS_REISSUABLE, {
-        from: accounts[0],
-        gas: 3000000
-      })
-    }).then(function () {
-      return chronoBankPlatform.setProxy(ChronoBankAssetWithFeeProxy.address, SYMBOL2, {from: accounts[0]})
-    }).then(function () {
-      return ChronoBankAssetWithFeeProxy.deployed()
-    }).then(function (instance) {
-      return instance.init(ChronoBankPlatform.address, SYMBOL2, NAME2, {from: accounts[0]})
-    }).then(function () {
-      return ChronoBankAssetWithFeeProxy.deployed()
-    }).then(function (instance) {
-      return instance.proposeUpgrade(ChronoBankAssetWithFee.address, {from: accounts[0]})
-    }).then(function () {
-      return ChronoBankAssetWithFee.deployed()
-    }).then(function (instance) {
-      return instance.init(ChronoBankAssetWithFeeProxy.address, {from: accounts[0]})
-    }).then(function (instance) {
-      return ChronoBankAssetWithFee.deployed()
-    }).then(function (instance) {
-      return instance.setupFee(Rewards.address, 100, {from: accounts[0]})
-    }).then(function () {
-      return ChronoBankPlatform.deployed()
-    }).then(function (instance) {
-      return instance.changeOwnership(SYMBOL2, assetsManager.address, {from: accounts[0]})
-    }).then(function () {
-      return chronoBankPlatform.changeContractOwnership(assetsManager.address, {from: accounts[0]})
-    }).then(function () {
-      return assetsManager.claimPlatformOwnership({from: accounts[0]})
-    }).then(function(instance) {
-      //web3.eth.sendTransaction({to: Exchange.address, value: BALANCE_ETH, from: accounts[0]});
-      done();
-    }).catch(function (e) { console.log(e); });
-    //reverter.snapshot(done);
+
+    Setup.setup(done);
+
   });
 
   context("initial tests", function(){
 
     it("can provide ExchangeManager address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.ExchangeManager).then(function(r) {
-        assert.equal(r,exchangeManager.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.ExchangeManager).then(function(r) {
+        assert.equal(r,Setup.exchangeManager.address);
       });
     });
 
     it("can provide RewardsContract address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.Rewards).then(function(r) {
-        assert.equal(r,rewards.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.Rewards).then(function(r) {
+        assert.equal(r,Setup.rewards.address);
       });
     });
 
     it("can provide LOCManager address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.LOCManager).then(function(r) {
-        assert.equal(r,chronoMint.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.LOCManager).then(function(r) {
+        assert.equal(r,Setup.chronoMint.address);
       });
     });
 
     it("can provide ERC20Manager address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.ERC20Manager).then(function(r) {
-        assert.equal(r,erc20Manager.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.ERC20Manager).then(function(r) {
+        assert.equal(r,Setup.erc20Manager.address);
       });
     });
 
     it("can provide AssetsManager address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.AssetsManager).then(function(r) {
-        assert.equal(r,assetsManager.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.AssetsManager).then(function(r) {
+        assert.equal(r,Setup.assetsManager.address);
       });
     });
 
     it("can provide UserManager address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.UserManager).then(function(r) {
-        assert.equal(r,userManager.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.UserManager).then(function(r) {
+        assert.equal(r,Setup.userManager.address);
       });
     });
 
     it("can provide PendingManager address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.PendingManager).then(function(r) {
-        assert.equal(r,shareable.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.PendingManager).then(function(r) {
+        assert.equal(r,Setup.shareable.address);
       });
     });
 
     it("can provide TimeHolder address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.TimeHolder).then(function(r) {
-        assert.equal(r,timeHolder.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.TimeHolder).then(function(r) {
+        assert.equal(r,Setup.timeHolder.address);
       });
     });
 
     it("can provide Voting address.", function() {
-      return contractsManager.getContractAddressByType.call(contractTypes.Voting).then(function(r) {
-        assert.equal(r,vote.address);
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.Voting).then(function(r) {
+        assert.equal(r,Setup.vote.address);
       });
     });
 
     it("doesn't allow a non CBE key to change the contract address", function() {
-      return contractsManager.setContractAddress(vote.address, coin2.address,{from: owner1}).then(function(r) {
-        return contractsManager.getContractAddressByType.call(contractTypes.Voting).then(function(r){
-          assert.equal(r, vote.address);
+      return Setup.contractsManager.setContractAddress(Setup.rewards.address,Setup.contractTypes.Voting,{from: owner1}).then(function(r) {
+        return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.Voting).then(function(r){
+          assert.equal(r, Setup.vote.address);
         });
       });
     });
 
     it("allows a CBE key to change the contract address", function() {
-      return contractsManager.setContractAddress(vote.address, coin2.address).then(function(r) {
-        return contractsManager.getContractAddressByType.call(contractTypes.Voting).then(function(r){
-          assert.equal(r, coin2.address);
-        });
-      });
-    });
-
-    it("doesn't allow a non CBE key to change the contract description", function() {
-      return contractsManager.setContractDescription(coin2.address, 'New Description',{from: owner1}).then(function(r) {
-        return contractsManager.getContractMetaData.call(coin2.address).then(function(r){
-          assert.equal(r[2], 'Voting');
-        });
-      });
-    });
-
-    it("allows a CBE key to change the contract address", function() {
-      return contractsManager.setContractDescription(coin2.address, 'New Description').then(function(r) {
-        return contractsManager.getContractMetaData.call(coin2.address).then(function(r){
-          assert.equal(r[2], 'New Description');
+      return Setup.contractsManager.setContractAddress('0x0000000000000000000000000000000000000123',Setup.contractTypes.Voting).then(function(r) {
+        return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.Voting).then(function(r){
+          assert.equal(r, '0x0000000000000000000000000000000000000123');
         });
       });
     });

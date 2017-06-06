@@ -6,9 +6,9 @@ contract ERC20ManagerInterface {
 
     function addToken(
     address _token,
-    string _name,
-    string _symbol,
-    string _url,
+    bytes32 _name,
+    bytes32 _symbol,
+    bytes32 _url,
     uint8 _decimals,
     bytes32 _ipfsHash,
     bytes32 _swarmHash) returns(bool);

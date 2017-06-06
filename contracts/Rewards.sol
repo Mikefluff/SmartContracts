@@ -35,84 +35,80 @@ import "./Managed.sol";
  * didn't happen yet.
  */
 contract Rewards is Managed {
-    // Structure of a particular period.
-    struct Period {
-    uint startDate;                                           // Period starting date, also
-    uint totalShares;
-    uint shareholdersCount;
-    bool isClosed;
-    mapping(address => uint) shares;                          // Shareholder shares in period.
-    mapping(uint => address) shareholders;
-    mapping(address => uint) shareholdersId;
-    mapping(address => uint) assetBalances;                   // Rewards for distribution.
-    mapping(address => mapping(address => bool)) calculated;  // Flag that indicates that rewards
-    // already distributed for holder.
-    }
 
-    address[] public assets;
-    mapping(address => bool) assetsExists;
-
-    // Minimum period length, in days.
-    uint public closeInterval;
-
-    // Maximum shares which can be transfered in on TX
-    uint public maxSharesTransfer = 30;
-
-    // Asset rewards accumulated for shareholder.
-    mapping(address => mapping(address => uint)) rewards;
-
-    // Asset rewards available for withdrawal from all previous periods.
-    mapping(address => uint) public rewardsLeft;
-
-    // Periods list. Last one is always active.
-    Period[] public periods;
-
+    StorageInterface.UInt closeInterval;
+    StorageInterface.UInt maxSharesTransfer;
+    StorageInterface.AddressAddressUIntMapping rewards;
+    StorageInterface.AddressUIntMapping rewardsLeft;
+    StorageInterface.UInt periods;
+    StorageInterface.UIntBoolMapping closed;
+    StorageInterface.UIntUIntMapping startDate;
+    StorageInterface.UIntUIntMapping totalShares;
+    StorageInterface.UIntUIntMapping shareholdersCount;
+    StorageInterface.UIntUIntAddressMapping shareholders;
+    StorageInterface.UIntAddressUIntMapping shares;
+    StorageInterface.UIntAddressUIntMapping shareholdersId;
+    StorageInterface.UIntAddressUIntMapping assetBalances;
+    StorageInterface.UIntAddressAddressBoolMapping calculated;
 
     function Rewards(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
-
+        closeInterval.init('closeInterval');
+        maxSharesTransfer.init('maxSharesTransfer');
+        rewards.init('rewards');
+        rewardsLeft.init('rewardsLeft');
+        periods.init('periods');
+        closed.init('closed');
+        startDate.init('startDate');
+        totalShares.init('totalShares');
+        shareholdersCount.init('shareholdersCount');
+        shareholders.init('shareholders');
+        shares.init('shares');
+        shareholdersId.init('shareholdersId');
+        assetBalances.init('assetBalances');
+        calculated.init('calculated');
     }
 
     /**
-     * Sets TimeHolder contract and period minimum length.
+     * Sets ContractManager contract and period minimum length.
      * Starts the first period.
      *
      * Can be set only once.
      *
-     * @param _contractsManager contract address.
+     * @param _contractsManager contracts Manager contract address.
      * @param _closeIntervalDays period minimum length, in days.
      *
      * @return success.
      */
 
     function init(address _contractsManager, uint _closeIntervalDays) returns(bool) {
-        if (periods.length > 0) {
+        if (store.get(periods) > 0) {
             return false;
         }
         if(store.get(contractsManager) != 0x0)
-        return false;
+            return false;
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Rewards))
-        return false;
+            return false;
+        store.set(periods,store.get(periods)+1);
         store.set(contractsManager,_contractsManager);
-        closeInterval = _closeIntervalDays;
-        periods.length++;
-        periods[0].shareholdersCount = 1;
-        periods[0].startDate = now;
+        store.set(closeInterval,_closeIntervalDays);
+        store.set(shareholdersCount,0,1);
+        store.set(startDate,0,now);
 
         return true;
     }
 
     function setCloseInterval(uint _closeInterval) onlyAuthorized returns(bool) {
-        closeInterval = _closeInterval;
+        store.set(closeInterval,_closeInterval);
         return true;
     }
 
     function setMaxSharesTransfer(uint _maxSharesTransfer) onlyAuthorized returns(bool) {
-        maxSharesTransfer = _maxSharesTransfer;
+        store.set(maxSharesTransfer,_maxSharesTransfer);
         return true;
     }
 
     function periodsLength() constant returns(uint) {
-        return periods.length;
+        return store.get(periods);
     }
 
     function periodUnique(uint _period) constant returns(uint) {
@@ -121,7 +117,7 @@ contract Rewards is Managed {
             return TimeHolder(timeHolder).shareholdersCount() - 1;
         }
         else
-            return periods[_period].shareholdersCount - 1;
+            return store.get(shareholdersCount,_period) - 1;
     }
 
     modifier onlyTimeHolder() {
@@ -138,16 +134,17 @@ contract Rewards is Managed {
      * @return success.
      */
     function closePeriod() returns(bool) {
-        Period period = periods[lastPeriod()];
-        if ((period.startDate + (closeInterval * 1 days)) > now) {
+        uint period = lastPeriod();
+        if ((store.get(startDate,period) + (store.get(closeInterval) * 1 days)) > now) {
             //_error("Cannot close period yet");
             return false;
         }
         address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         // Add new period.
-        periods.length++;
-        periods[lastPeriod()].startDate = now;
-        periods[lastClosedPeriod()].shareholdersCount = TimeHolder(timeHolder).shareholdersCount();
+        store.set(periods,store.get(periods)+1);
+        store.set(startDate,lastPeriod(),now);
+        store.set(shareholdersCount,lastClosedPeriod(),TimeHolder(timeHolder).shareholdersCount());
+        address[] assets; //TODO add getter from assetsManager
         if(assets.length != 0) {
             for(uint i = 0;i<assets.length;i++) {
                 registerAsset(Asset(assets[i]));
@@ -157,84 +154,82 @@ contract Rewards is Managed {
     }
 
     function getPartsCount() constant returns(uint) {
-        Period period = periods[lastClosedPeriod()];
-        if(!period.isClosed && period.shareholdersCount > maxSharesTransfer) {
-            if(period.shareholdersCount % maxSharesTransfer == 0)
-            return period.shareholdersCount / maxSharesTransfer;
+        uint period = lastClosedPeriod();
+        uint _shareholdersCount = store.get(shareholdersCount,period);
+        uint _maxSharesTransfer = store.get(maxSharesTransfer);
+        if(!store.get(closed,period) && _shareholdersCount > _maxSharesTransfer) {
+            if(_shareholdersCount % _maxSharesTransfer == 0)
+                return _shareholdersCount / _maxSharesTransfer;
             else
-            return period.shareholdersCount / maxSharesTransfer + 1;
+                return _shareholdersCount / _maxSharesTransfer + 1;
         }
         return 0;
     }
 
     function storeDeposits(uint _part) returns(bool) {
-        uint first = _part * maxSharesTransfer + 1;
-        if(first > periods[lastClosedPeriod()].shareholdersCount)
-        throw;
-        uint last = first + maxSharesTransfer;
-        if(last >= periods[lastClosedPeriod()].shareholdersCount)
-        last = periods[lastClosedPeriod()].shareholdersCount;
+        uint period = lastClosedPeriod();
+        uint _maxSharesTransfer = store.get(maxSharesTransfer);
+        uint _shareholdersCount = store.get(shareholdersCount,period);
+        uint first = _part * _maxSharesTransfer + 1;
+        if(first > _shareholdersCount)
+            throw;
+        uint last = first + _maxSharesTransfer;
+        if(last >= _shareholdersCount)
+            last = _shareholdersCount;
         address holder;
         address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         for(;first < last;first++) {
             holder = TimeHolder(timeHolder).shareholders(first);
-            if(periods[lastClosedPeriod()].shares[holder] == 0) {
-                periods[lastClosedPeriod()].shares[holder] = TimeHolder(timeHolder).shares(holder);
-                periods[lastClosedPeriod()].totalShares += periods[lastClosedPeriod()].shares[holder];
+            if(store.get(shares,period,holder) == 0) {
+                uint holderShares = TimeHolder(timeHolder).shares(holder);
+                store.set(shares,period,holder,holderShares);
+                store.set(totalShares,period,store.get(totalShares,period)+holderShares);
             }
         }
-        first = _part * maxSharesTransfer + 1;
+        first = _part * _maxSharesTransfer + 1;
+        address[] assets; //TODO add getter from assetsManager
         for(;first < last;first++) {
             holder = TimeHolder(timeHolder).shareholders(first);
             for(uint i = 0;i<assets.length;i++) {
                 calculateRewardFor(Asset(assets[i]),holder);
             }
         }
-        if(periods[lastClosedPeriod()].totalShares == TimeHolder(timeHolder).totalShares()) {
-            periods[lastClosedPeriod()].isClosed = true;
+        if(store.get(totalShares,period) == TimeHolder(timeHolder).totalShares()) {
+            store.set(closed,period,true);
             //eventsHistory.periodClosed(lastClosedPeriod());
             return true;
         }
         return false;
     }
 
-    function addAsset(address _asset) onlyAuthorized returns(bool) {
-        if(_asset != 0x0 && !assetsExists[_asset]) {
-            assetsExists[_asset] = true;
-            assets.push(_asset);
-            return true;
-        }
-        return false;
-    }
-
     function registerAsset(Asset _asset) returns(bool) {
-        address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
-        if (TimeHolder(timeHolder).sharesContract() == _asset) {
+        //address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
+        //if (TimeHolder(timeHolder).sharesContract() == _asset) {
             //_error("Asset is already registered");
-            return false;
-        }
-        Period period = periods[lastClosedPeriod()];
-        if (period.assetBalances[_asset] != 0) {
+        //    return false;
+        //}
+        uint period = lastClosedPeriod();
+        if (store.get(assetBalances,period,_asset) != 0) {
            // _error("Asset is already registered");
             return false;
         }
 
-        period.assetBalances[_asset] = _asset.balanceOf(this) - rewardsLeft[_asset];
-        rewardsLeft[_asset] += period.assetBalances[_asset];
+        store.set(assetBalances,period,_asset,_asset.balanceOf(this) - store.get(rewardsLeft,_asset));
+        store.set(rewardsLeft,_asset,store.get(rewardsLeft,_asset) + store.get(assetBalances,period,_asset));
 
         //eventsHistory.assetRegistration(_asset, period.assetBalances[_asset]);
         return true;
     }
 
     function deposit(address _address, uint _amount, uint _total) onlyTimeHolder returns(bool) {
-        if (periods.length == 1) {
+        if (store.get(periods) == 1) {
             return false;
         }
-        Period period = periods[lastClosedPeriod()];
-        if(!period.isClosed) {
-            period.totalShares += _amount;
-            if(period.shareholdersId[_address] > 0) {
-                period.shares[_address] = _total;
+        uint period = lastClosedPeriod();
+        if(!store.get(closed,period)) {
+            store.set(totalShares,period,store.get(totalShares,period) + _amount);
+            if(store.get(shareholdersId,period,_address) > 0) {
+                store.set(shares,period,_address,_total);
             }
             return true;
         }
@@ -305,21 +300,20 @@ contract Rewards is Managed {
      * @return success.
      */
     function calculateRewardForAddressAndPeriod(address _assetAddress, address _address, uint _period) internal returns(bool) {
-        Period period = periods[_period];
         //if(period.isClosed) {
-        if (period.assetBalances[_assetAddress] == 0) {
+        if (store.get(assetBalances,_period,_assetAddress) == 0) {
            // _error("Reward calculation failed");
             return false;
         }
 
-        if (period.calculated[_assetAddress][_address]) {
+        if (store.get(calculated,_period,_assetAddress,_address)) {
             //_error("Reward is already calculated");
             return false;
         }
 
-        uint reward = period.assetBalances[_assetAddress] * period.shares[_address] / period.totalShares;
-        rewards[_assetAddress][_address] += reward;
-        period.calculated[_assetAddress][_address] = true;
+        uint reward = store.get(assetBalances,_period,_assetAddress) * store.get(shares,_period,_address) / store.get(totalShares,_period);
+        store.set(rewards,_assetAddress,_address,store.get(rewards,_assetAddress,_address) + reward);
+        store.set(calculated,_period,_assetAddress,_address,true);
 
         //eventsHistory.calculateReward(_assetAddress, _address, reward);
         return true;
@@ -383,7 +377,7 @@ contract Rewards is Managed {
      * @return success.
      */
     function withdrawRewardFor(Asset _asset, address _address, uint _amount) returns(bool) {
-        if (rewardsLeft[_asset] == 0) {
+        if (store.get(rewardsLeft,_asset) == 0) {
            // _error("No rewards left");
             return false;
         }
@@ -403,8 +397,8 @@ contract Rewards is Managed {
             throw;
         }
 
-        rewards[_asset][_address] -= diff;
-        rewardsLeft[_asset] -= diff;
+        store.set(rewards,_asset,_address,store.get(rewards,_asset,_address) - diff);
+        store.set(rewardsLeft,_asset, store.get(rewardsLeft,_asset) - diff);
 
         //eventsHistory.withdrawReward(_asset, _address, _amount);
         return true;
@@ -412,15 +406,15 @@ contract Rewards is Managed {
 
     function withdrawn(address _address, uint _amount, uint _total) onlyTimeHolder returns(bool) {
 
-        if (periods.length == 1) {
+        if (store.get(periods) == 1) {
             return false;
         }
-        Period period = periods[lastClosedPeriod()];
-        if(!period.isClosed) {
+        uint period = lastClosedPeriod();
+        if(!store.get(closed,period)) {
 
-            period.totalShares -= _amount;
-            if(period.shareholdersId[_address] > 0) {
-                period.shares[_address] = _total;
+            store.set(totalShares,period,store.get(totalShares,period) - _amount);
+            if(store.get(shareholdersId,period,_address) > 0) {
+                store.set(shares,period,_address,_total);
             }
             return true;
         }
@@ -441,7 +435,7 @@ contract Rewards is Managed {
             address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
             return TimeHolder(timeHolder).shares(_address);
         }
-        return periods[_period].shares[_address];
+        return store.get(shares,_period,_address);
     }
 
     /**
@@ -456,7 +450,7 @@ contract Rewards is Managed {
             address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
             return TimeHolder(timeHolder).totalShares();
         }
-        return periods[_period].totalShares;
+        return store.get(totalShares,_period);
     }
 
     /**
@@ -465,7 +459,7 @@ contract Rewards is Managed {
      * @return period.
      */
     function lastPeriod() constant returns(uint) {
-        return periods.length - 1;
+        return store.get(periods);
     }
 
     /**
@@ -476,10 +470,10 @@ contract Rewards is Managed {
      * @return period.
      */
     function lastClosedPeriod() constant returns(uint) {
-        if (periods.length == 1) {
+        if (store.get(periods) - 1 == 1) {
             throw;
         }
-        return periods.length - 2;
+        return store.get(periods) - 2;
     }
 
     /**
@@ -490,7 +484,7 @@ contract Rewards is Managed {
      * @return period closing state.
      */
     function isClosed(uint _period) constant returns(bool) {
-        return lastClosedPeriod() >= _period;
+        return store.get(closed,_period);
     }
 
     /**
@@ -503,7 +497,7 @@ contract Rewards is Managed {
      * @return assets amount.
      */
     function assetBalanceInPeriod(address _assetAddress, uint _period) constant returns(uint) {
-        return periods[_period].assetBalances[_assetAddress];
+        return store.get(assetBalances,_period,_assetAddress);
     }
 
     /**
@@ -516,7 +510,7 @@ contract Rewards is Managed {
      * @return reward calculation state.
      */
     function isCalculatedFor(address _assetAddress, address _address, uint _period) constant returns(bool) {
-        return periods[_period].calculated[_assetAddress][_address];
+        return store.get(calculated,_period,_assetAddress,_address);
     }
 
     /**
@@ -528,7 +522,7 @@ contract Rewards is Managed {
      * @return rewards amount.
      */
     function rewardsFor(address _assetAddress, address _address) constant returns(uint) {
-        return rewards[_assetAddress][_address];
+        return store.get(rewards,_assetAddress,_address);
     }
 
     function()

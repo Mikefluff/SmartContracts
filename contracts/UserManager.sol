@@ -108,6 +108,8 @@ contract UserManager is Managed {
     }
 
     function setRequired(uint _required) multisig returns (bool) {
+            if(!(_required <= store.count(admins)))
+                return false;
             store.set(req,_required);
             eventsHistory.setRequired(_required);
             return true;

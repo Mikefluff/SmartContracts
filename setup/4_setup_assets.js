@@ -139,29 +139,10 @@ var setup = function (callback) {
     ] = instances
 
   }).then(() => {
-    module.exports.storage = storage
-    module.exports.accounts = accounts
-    module.exports.assetsManager = assetsManager
-    module.exports.chronoBankPlatform = chronoBankPlatform
-    module.exports.chronoMint = chronoMint
-    module.exports.contractsManager = contractsManager
-    module.exports.timeHolder = timeHolder
-    module.exports.shareable = shareable
-    module.exports.eventsHistory = eventsHistory
-    module.exports.erc20Manager = erc20Manager
-    module.exports.chronoBankPlatformEmitter = chronoBankPlatformEmitter
-    module.exports.rewards = rewards
-    module.exports.userManager = userManager
-    module.exports.exchangeManager = exchangeManager
-    module.exports.chronoBankAsset = chronoBankAsset
-    module.exports.chronoBankAssetProxy = chronoBankAssetProxy
-    module.exports.chronoBankAssetWithFee = chronoBankAssetWithFee
-    module.exports.chronoBankAssetWithFeeProxy = chronoBankAssetWithFeeProxy
-    module.exports.vote = vote
-    module.exports.chronoMintEmitter = chronoMintEmitter
     console.log('link addresses')
     return Promise.all([
       storage.setManager(ManagerMock.address),
+      contractsManager.init(),
       userManager.init(ContractsManager.address),
       shareable.init(ContractsManager.address),
       chronoMint.init(ContractsManager.address),

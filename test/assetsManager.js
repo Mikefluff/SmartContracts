@@ -1,5 +1,3 @@
-const FakeCoin = artifacts.require("./FakeCoin.sol");
-const FakeCoin2 = artifacts.require("./FakeCoin2.sol");
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
 const Setup = require('../setup/setup');
 const Reverter = require('./helpers/reverter');
@@ -104,15 +102,41 @@ contract('Assets Manager', function(accounts) {
 
     it("allow add TIME Asset", function() {
       return Setup.assetsManager.addAsset.call(Setup.chronoBankAssetProxy.address,'TIME', owner).then(function(r) {
-        console.log(r);
         return Setup.assetsManager.addAsset(Setup.chronoBankAssetProxy.address,'TIME', owner, {
           from: accounts[0],
           gas: 3000000
         }).then(function(tx) {
-          console.log(tx);
-          return Setup.assetsManager.getAssets.call().then(function(r) {
-            console.log(r);
-            assert.equal(r.length,2);
+          return Setup.assetsManager.getAssets.call().then(function(r2) {
+            assert.equal(r,true);
+            assert.equal(r2.length,2);
+          });
+        });
+      });
+    });
+
+    it("doesn't allow add TIME Asset with LHT symbol", function() {
+      return Setup.assetsManager.addAsset.call(Setup.chronoBankAssetProxy.address,'LHT', owner).then(function(r) {
+        return Setup.assetsManager.addAsset(Setup.chronoBankAssetProxy.address,'LHT', owner, {
+          from: accounts[0],
+          gas: 3000000
+        }).then(function(tx) {
+          return Setup.assetsManager.getAssets.call().then(function(r2) {
+            assert.equal(r,false);
+            assert.equal(r2.length,2);
+          });
+        });
+      });
+    });
+
+    it("doesn't allow to add LHT Asset with TIME symbol", function() {
+      return Setup.assetsManager.addAsset.call(Setup.chronoBankAssetWithFeeProxy.address,'TIME', Setup.chronoMint.address).then(function(r) {
+        return Setup.assetsManager.addAsset(Setup.chronoBankAssetWithFeeProxy.address,'TIME', Setup.chronoMint.address, {
+          from: accounts[0],
+          gas: 3000000
+        }).then(function(tx) {
+          return Setup.assetsManager.getAssets.call().then(function(r2) {
+            assert.equal(r,false);
+            assert.equal(r2.length,2);
           });
         });
       });
@@ -120,15 +144,13 @@ contract('Assets Manager', function(accounts) {
 
     it("allow add LHT Asset", function() {
       return Setup.assetsManager.addAsset.call(Setup.chronoBankAssetWithFeeProxy.address,'LHT', Setup.chronoMint.address).then(function(r) {
-        console.log(r);
         return Setup.assetsManager.addAsset(Setup.chronoBankAssetWithFeeProxy.address,'LHT', Setup.chronoMint.address, {
           from: accounts[0],
           gas: 3000000
         }).then(function(tx) {
-          console.log(tx);
-          return Setup.assetsManager.getAssets.call().then(function(r) {
-            console.log(r);
-            assert.equal(r.length,3);
+          return Setup.assetsManager.getAssets.call().then(function(r2) {
+            assert.equal(r,true);
+            assert.equal(r2.length,3);
           });
         });
       });

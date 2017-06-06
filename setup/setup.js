@@ -159,9 +159,11 @@ var setup = function (callback) {
     module.exports.chronoBankAssetWithFeeProxy = chronoBankAssetWithFeeProxy
     module.exports.vote = vote
     module.exports.chronoMintEmitter = chronoMintEmitter
-    console.log('link addresses')
+    console.log('setup storage')
+    return storage.setManager(ManagerMock.address)
+    console.log('ling addresses')
+  }).then(() => {
     return Promise.all([
-      storage.setManager(ManagerMock.address),
       contractsManager.init(),
       userManager.init(ContractsManager.address),
       shareable.init(ContractsManager.address),
@@ -178,10 +180,10 @@ var setup = function (callback) {
       chronoBankAssetWithFeeProxy.init(ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, params)
     ])
   }).then(() => {
-    console.log('setup rewards')
-    console.log('--addAsset')
-    return rewards.addAsset(ChronoBankAssetWithFeeProxy.address)
-  }).then(() => {
+  //  console.log('setup rewards')
+  //  console.log('--addAsset')
+  //  return rewards.addAsset(ChronoBankAssetWithFeeProxy.address)
+  //}).then(() => {
     console.log('setup timeHolder')
     console.log('--add reward listener')
     return timeHolder.addListener(rewards.address).then(() => {
