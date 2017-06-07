@@ -2,8 +2,9 @@ pragma solidity ^0.4.8;
 
 import "./Managed.sol";
 import {TimeHolderInterface as TimeHolder} from "./TimeHolderInterface.sol";
+import "./VoteEmitter.sol";
 
-contract Vote is Managed {
+contract Vote is Managed, VoteEmitter {
 
     StorageInterface.UInt polls;
     StorageInterface.UInt activePolls;
@@ -15,11 +16,14 @@ contract Vote is Managed {
     StorageInterface.UIntBytes32Mapping description;
     StorageInterface.UIntUIntMapping votelimit;
     StorageInterface.UIntUIntMapping optionsCount;
+    StorageInterface.UIntUIntMapping memberCount;
     StorageInterface.UIntUIntMapping deadline;
     StorageInterface.UIntUIntMapping ipfsHashesCount;
     StorageInterface.UIntBoolMapping status;
     StorageInterface.UIntBoolMapping active;
+    StorageInterface.UIntUIntAddressMapping members;
     StorageInterface.UIntAddressUIntMapping memberOption;
+    StorageInterface.UIntAddressUIntMapping memberVotes;
     StorageInterface.UIntUIntBytes32Mapping ipfsHashes;
     StorageInterface.UIntUIntBytes32Mapping optionsId;
     StorageInterface.UIntUIntUIntMapping options;
@@ -33,11 +37,14 @@ contract Vote is Managed {
     // Something went wrong.
     event Error(bytes32 message);
 
-    function Vote(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function Vote(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
         polls.init('polls');
         activePolls.init('activePolls');
         memberPolls.init('memberPolls');
         memberPollsCount.init('memberPollsCount');
+        memberCount.init('memberCount');
+        members.init('members');
+        memberVotes.init('memberVotes');
         sharesPercent.init('sharesPercent');
         owner.init('owner');
         title.init('title');
@@ -60,7 +67,15 @@ contract Vote is Managed {
         if(!ContractsManagerInterface(_contractsManager).addContract(this,ContractsManagerInterface.ContractType.Voting))
             return false;
         store.set(contractsManager, _contractsManager);
-        store.set(sharesPercent,5);
+        store.set(sharesPercent,1);
+        return true;
+    }
+
+    function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
+        if (getEventsHistory() != 0x0) {
+            return false;
+        }
+        _setEventsHistory(_eventsHistory);
         return true;
     }
 
@@ -242,6 +257,10 @@ contract Vote is Managed {
             return false;
         }
         store.set(options,_pollId,_choice,store.get(options,_pollId,_choice) + TimeHolder(timeHolder).shares(msg.sender));
+        store.set(memberVotes,_pollId,msg.sender,TimeHolder(timeHolder).shares(msg.sender));
+        uint _membersCount = store.get(memberCount,_pollId);
+        store.set(members,_pollId,_membersCount,msg.sender);
+        store.set(memberCount,_pollId,_membersCount+1);
         store.set(memberOption,_pollId,msg.sender,_choice);
         uint _memberPollsCount = store.get(memberPollsCount,msg.sender);
         store.set(memberPolls,msg.sender,_memberPollsCount++,_pollId);
@@ -310,17 +329,8 @@ contract Vote is Managed {
         uint pollsCount = store.get(polls);
         if(_pollId >= pollsCount)
             return false;
-        if(_pollId == pollsCount - 1)
-            store.set(polls,pollsCount-1);
-        else {
-            updatePollId(_pollId,pollsCount-1);
-            store.set(polls,pollsCount-1);
-        }
+        store.set(polls,pollsCount-1);
         return true;
-    }
-
-    function updatePollId(uint _oldId, uint _newId) internal {
-
     }
 
     //when time or vote limit is reached, set the poll status to false
@@ -363,6 +373,7 @@ contract Vote is Managed {
                 uint choice = store.get(memberOption,_pollId,_address);
                 uint value = store.get(options,_pollId,choice);
                 value = value + _amount;
+                store.set(memberVotes,_pollId,_address,_total);
                 store.set(options,_pollId,choice,value);
             }
             if (store.get(votelimit,_pollId) > 0 || store.get(votelimit,_pollId) <= now) {
@@ -381,7 +392,8 @@ contract Vote is Managed {
             if(store.get(status,_pollId) && store.get(active,_pollId)) {
                 uint choice = store.get(memberOption,_pollId,_address);
                 uint value = store.get(options,_pollId,choice);
-                value = value + _amount;
+                value = value - _amount;
+                store.set(memberVotes,_pollId,_address,_total);
                 store.set(options,_pollId,choice,value);
                 if(_total == 0) {
                     if(i == _memberPollsCount - 1) {
@@ -391,11 +403,25 @@ contract Vote is Managed {
                         store.set(memberPolls,_address,i,store.get(memberPolls,_address,_memberPollsCount - 1));
                         store.set(memberPollsCount,_address,_memberPollsCount-1);
                     }
-                    store.set(memberOption,_pollId,_address,0);
+                    removeMember(_pollId, _address);
                 }
             }
         }
         return true;
+    }
+
+    function removeMember(uint _pollId, address _address) {
+        store.set(memberOption,_pollId,_address,0);
+        store.set(memberVotes,_pollId,_address,0);
+        uint _membersCount = store.get(memberCount,_pollId);
+        for(uint i=0;i<_membersCount;i++) {
+            address _member = store.get(members,_pollId,i);
+            if(_member == _address) {
+                if(i != _membersCount - 1)
+                    store.set(members,_pollId,i,store.get(members,_pollId,_membersCount-1));
+                store.set(memberCount,_pollId,store.get(memberCount,_pollId)-1);
+            }
+        }
     }
 
     function()

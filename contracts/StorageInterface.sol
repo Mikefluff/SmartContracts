@@ -110,6 +110,10 @@ library StorageInterface {
         Set innerSet;
     }
 
+    struct CounterSet {
+        Set innerSet;
+    }
+
     // Can't use modifier due to a Solidity bug.
     function sanityCheck(bytes32 _currentId, bytes32 _newId) internal {
         if (_currentId != 0 || _newId == 0) {
@@ -227,6 +231,10 @@ library StorageInterface {
     }
 
     function init(AddressesSet storage self, bytes32 _id) internal {
+        init(self.innerSet, _id);
+    }
+
+    function init(CounterSet storage self, bytes32 _id) internal {
         init(self.innerSet, _id);
     }
 
@@ -352,6 +360,10 @@ library StorageInterface {
         add(self, item.innerSet, bytes32(_value));
     }
 
+    function add(Config storage self, CounterSet storage item) internal {
+        add(self, item.innerSet, bytes32(count(self,item)));
+    }
+
     function set(Config storage self, Set storage item, bytes32 _oldValue, bytes32 _newValue) internal {
         if (!includes(self, item, _oldValue)) {
             return;
@@ -383,6 +395,10 @@ library StorageInterface {
     }
 
     function remove(Config storage self, AddressesSet storage item, address _value) internal {
+        remove(self, item.innerSet, bytes32(_value));
+    }
+
+    function remove(Config storage self, CounterSet storage item, uint _value) internal {
         remove(self, item.innerSet, bytes32(_value));
     }
 
@@ -470,6 +486,10 @@ library StorageInterface {
         return get(self, item.innerMapping, bytes32(_key), bytes32(_key2));
     }
 
+    function get(Config storage self, UIntUIntAddressMapping storage item, uint _key, uint _key2) internal constant returns(address) {
+        return address(get(self, item.innerMapping, bytes32(_key), bytes32(_key2)));
+    }
+
     function get(Config storage self, UIntUIntUIntMapping storage item, uint _key, uint _key2) internal constant returns(uint) {
         return uint(get(self, item.innerMapping, bytes32(_key), bytes32(_key2)));
     }
@@ -506,11 +526,23 @@ library StorageInterface {
         return getIndex(self, item.innerSet, bytes32(_value));
     }
 
+    function includes(Config storage self, CounterSet storage item, uint _value) internal constant returns(bool) {
+        return includes(self, item.innerSet, bytes32(_value));
+    }
+
+    function getIndex(Config storage self, CounterSet storage item, uint _value) internal constant returns(uint) {
+        return getIndex(self, item.innerSet, bytes32(_value));
+    }
+
     function count(Config storage self, Set storage item) internal constant returns(uint) {
         return get(self, item.count);
     }
 
     function count(Config storage self, AddressesSet storage item) internal constant returns(uint) {
+        return count(self, item.innerSet);
+    }
+
+    function count(Config storage self, CounterSet storage item) internal constant returns(uint) {
         return count(self, item.innerSet);
     }
 
@@ -527,12 +559,20 @@ library StorageInterface {
         return toAddresses(get(self, item.innerSet));
     }
 
+    function get(Config storage self, CounterSet storage item) internal constant returns(uint[]) {
+        return toUInt(get(self, item.innerSet));
+    }
+
     function get(Config storage self, Set storage item, uint _index) internal constant returns(bytes32) {
         return get(self, item.values, bytes32(_index+1));
     }
 
     function get(Config storage self, AddressesSet storage item, uint _index) internal constant returns(address) {
         return address(get(self, item.innerSet, _index));
+    }
+
+    function get(Config storage self, CounterSet storage item, uint _index) internal constant returns(uint) {
+        return uint(get(self, item.innerSet, _index));
     }
 
     function toBool(bytes32 self) constant returns(bool) {
@@ -547,6 +587,14 @@ library StorageInterface {
         address[] memory result = new address[](self.length);
         for (uint i = 0; i < self.length; i++) {
             result[i] = address(self[i]);
+        }
+        return result;
+    }
+
+    function toUInt(bytes32[] memory self) constant returns(uint[]) {
+        uint[] memory result = new uint[](self.length);
+        for (uint i = 0; i < self.length; i++) {
+            result[i] = uint(self[i]);
         }
         return result;
     }

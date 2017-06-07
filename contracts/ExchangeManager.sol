@@ -6,12 +6,13 @@ import "./Exchange.sol";
 import {ERC20ManagerInterface as ERC20Manager} from "./ERC20ManagerInterface.sol";
 import {ERC20Interface as Asset} from "./ERC20Interface.sol";
 import {ContractsManagerInterface as ContractsManager} from "./ContractsManagerInterface.sol";
+import "./ExchangeManagerEmitter.sol";
 
 contract Emitter {
     function emitError(bytes32 _message);
 }
 
-contract ExchangeManager is Managed {
+contract ExchangeManager is Managed, ExchangeManagerEmitter {
 
     address[] public exchanges;
     mapping(address => address[]) owners;
@@ -36,37 +37,15 @@ contract ExchangeManager is Managed {
         return false;
     }
 
-    // Should use interface of the emitter, but address of events history.
-    Emitter public eventsHistory;
-
-    /**
-     * Emits Error event with specified error message.
-     *
-     * Should only be used if no state changes happened.
-     *
-     * @param _message error message.
-     */
-    function _error(bytes32 _message) internal {
-        eventsHistory.emitError(_message);
-    }
-    /**
-     * Sets EventsHstory contract address.
-     *
-     * Can be set only once, and only by contract owner.
-     *
-     * @param _eventsHistory EventsHistory contract address.
-     *
-     * @return success.
-     */
     function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
-        if (address(eventsHistory) != 0) {
+        if (getEventsHistory() != 0x0) {
             return false;
         }
-        eventsHistory = Emitter(_eventsHistory);
+        _setEventsHistory(_eventsHistory);
         return true;
     }
 
-    function ExchangeManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function ExchangeManager(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
 
     }
 
@@ -94,7 +73,7 @@ contract ExchangeManager is Managed {
             owners[_exchange].push(msg.sender);
             return exchanges.length;
         }
-        _error("Can't add exchange");
+        _emitError("Can't add exchange");
         return 0;
     }
 
@@ -137,7 +116,7 @@ contract ExchangeManager is Managed {
             owners[exchangeAddr].push(msg.sender);
             return exchanges.length;
         }
-        _error("Can't create new exchange");
+        _emitError("Can't create new exchange");
         return 0;
     }
 
@@ -185,6 +164,10 @@ contract ExchangeManager is Managed {
             }
         }
         return result;
+    }
+
+    function _emitError(bytes32 _message) {
+        ExchangeManager(getEventsHistory()).emitError(_message);
     }
 
 }

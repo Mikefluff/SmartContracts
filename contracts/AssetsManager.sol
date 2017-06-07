@@ -7,6 +7,7 @@ import "./ChronoBankAssetInterface.sol";
 import "./ChronoBankAssetProxyInterface.sol";
 import "./ERC20Interface.sol";
 import "./OwnedInterface.sol";
+import "./AssetsManagerEmitter.sol";
 
 contract ChronoBankAsset {
     function init(ChronoBankAssetProxyInterface _proxy) returns(bool);
@@ -32,7 +33,7 @@ uint256 _reductionStep,
 uint256 _reductionValue) returns(address);
 }
 
-contract AssetsManager is Managed {
+contract AssetsManager is Managed, AssetsManagerEmitter {
 
     StorageInterface.Address platform;
     StorageInterface.Address proxyFactory;
@@ -56,7 +57,7 @@ contract AssetsManager is Managed {
         return false;
     }
 
-    function AssetsManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function AssetsManager(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
         platform.init('platform');
         proxyFactory.init('proxyFactory');
         assetsSymbols.init('assetsSymbols');
@@ -77,6 +78,14 @@ contract AssetsManager is Managed {
         store.set(platform,_platform);
         store.set(contractsManager,_contractsManager);
         store.set(proxyFactory,_proxyFactory);
+        return true;
+    }
+
+    function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
+        if (getEventsHistory() != 0x0) {
+            return false;
+        }
+        _setEventsHistory(_eventsHistory);
         return true;
     }
 
@@ -103,8 +112,20 @@ contract AssetsManager is Managed {
         return ERC20Interface(store.get(assets,symbol)).balanceOf(this);
     }
 
+    function getAssetBySymbol(bytes32 symbol) constant returns (address) {
+        return store.get(assets,symbol);
+    }
+
+    function getSymbolById(uint _id) constant returns (bytes32) {
+        return store.get(assetsSymbols,_id);
+    }
+
     function getAssets() constant returns(bytes32[]) {
         return store.get(assetsSymbols);
+    }
+
+    function getAssetsCount() constant returns(uint) {
+        return store.count(assetsSymbols);
     }
 
     function sendAsset(bytes32 _symbol, address _to, uint _value) onlyAssetOwner(_symbol) returns (bool) {
@@ -204,14 +225,14 @@ contract AssetsManager is Managed {
         return result;
     }
 
-    function getAssetsForOwner(address owner) constant returns (bytes32[]) {
+    function getAssetsForOwner(address owner) constant returns (bytes32[] result) {
         uint counter;
         uint i;
         for(i=0;i<store.count(assetsSymbols);i++) {
             if(isAssetOwner(store.get(assetsSymbols,i),owner))
             counter++;
         }
-        bytes32[] memory result = new bytes32[](counter);
+        result = new bytes32[](counter);
         counter = 0;
         for(i=0;i<store.count(assetsSymbols);i++) {
             if(isAssetOwner(store.get(assetsSymbols,i),owner)) {

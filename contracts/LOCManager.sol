@@ -6,19 +6,9 @@ import "./ERC20Interface.sol";
 import "./ERC20ManagerInterface.sol";
 import "./FeeInterface.sol";
 import "./ChronoBankAssetProxyInterface.sol";
+import "./LOCManagerEmitter.sol";
 
-contract Emitter {
-
-    function newLOC(bytes32 locName);
-    function remLOC(bytes32 locName);
-    function updLOCStatus(bytes32 locName, uint _oldStatus, uint _newStatus);
-    function updLOCValue(bytes32 locName);
-    function reissue(uint value, bytes32 locName);
-    function hashUpdate(bytes32 oldHash, bytes32 newHash);
-    function emitError(bytes32 _message);
-}
-
-contract LOCManager is Managed {
+contract LOCManager is Managed, LOCManagerEmitter {
 
     StorageInterface.Set offeringCompaniesNames;
     StorageInterface.Bytes32Bytes32Mapping website;
@@ -32,7 +22,7 @@ contract LOCManager is Managed {
 
     enum Status {maintenance, active, suspended, bankrupt}
 
-    function LOCManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function LOCManager(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
         offeringCompaniesNames.init('offeringCompaniesNames');
         website.init('website');
         publishedHash.init('publishedHash');
@@ -53,33 +43,11 @@ contract LOCManager is Managed {
         return true;
     }
 
-    // Should use interface of the emitter, but address of events history.
-    Emitter public eventsHistory;
-
-    /**
-     * Emits Error event with specified error message.
-     *
-     * Should only be used if no state changes happened.
-     *
-     * @param _message error message.
-     */
-    function _error(bytes32 _message) internal {
-        eventsHistory.emitError(_message);
-    }
-    /**
-     * Sets EventsHstory contract address.
-     *
-     * Can be set only once, and only by contract owner.
-     *
-     * @param _eventsHistory EventsHistory contract address.
-     *
-     * @return success.
-     */
-    function setupEventsHistory(address _eventsHistory) returns(bool) {
-        if (address(eventsHistory) != 0) {
+    function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
+        if (getEventsHistory() != 0x0) {
             return false;
         }
-        eventsHistory = Emitter(_eventsHistory);
+        _setEventsHistory(_eventsHistory);
         return true;
     }
 
@@ -95,35 +63,47 @@ contract LOCManager is Managed {
         }
     }
 
-    function sendAsset(bytes32 _symbol, address _to, uint _value) onlyAuthorized returns (bool) {
+    modifier locIsActive(bytes32 _locName) {
+        if(store.get(status,_locName) == uint(Status.active)) {
+            _;
+        }
+    }
+
+    modifier locIsNotActive(bytes32 _locName) {
+        if(store.get(status,_locName) != uint(Status.active)) {
+            _;
+        }
+    }
+
+    function sendAsset(bytes32 _symbol, address _to, uint _value) multisig returns (bool) {
         return AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).sendAsset(_symbol, _to, _value);
     }
 
-    function reissueAsset(uint _value, bytes32 _locName) multisig returns (bool) {
+    function reissueAsset(uint _value, bytes32 _locName) locIsActive(_locName) multisig returns (bool) {
         uint _issued = store.get(issued,_locName);
         if(_value <= store.get(issueLimit,_locName) - _issued) {
             if(AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).reissueAsset(store.get(currency,_locName), _value)) {
                 store.set(issued,_locName,_issued + _value);
-                eventsHistory.reissue(_value,_locName);
+                _emitReissue(_locName,_value);
                 return true;
             }
         }
         return false;
     }
 
-    function revokeAsset(uint _value, bytes32 _locName) multisig returns (bool) {
+    function revokeAsset(uint _value, bytes32 _locName) locIsActive(_locName) multisig returns (bool) {
         uint _issued = store.get(issued,_locName);
         if(_value <= _issued) {
             if(AssetsManagerInterface(ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.AssetsManager)).revokeAsset(store.get(currency,_locName), _value)) {
                 store.set(issued,_locName,_issued - _value);
-                eventsHistory.reissue(_value, _locName);
+                _emitRevoke(_locName,_value);
                 return true;
             }
         }
         return false;
     }
 
-    function removeLOC(bytes32 _name) locExists(_name) multisig returns (bool) {
+    function removeLOC(bytes32 _name) locExists(_name) multisig locIsNotActive(_name) returns (bool) {
         store.remove(offeringCompaniesNames,_name);
         store.set(website,_name,0);
         store.set(issueLimit,_name,0);
@@ -133,6 +113,7 @@ contract LOCManager is Managed {
         store.set(expDate,_name,0);
         store.set(currency,_name,0);
         store.set(createDate,_name,0);
+        _emitRemLOC(_name);
         return true;
     }
 
@@ -144,12 +125,12 @@ contract LOCManager is Managed {
         store.set(expDate,_name,_expDate);
         store.set(currency,_name,_currency);
         store.set(createDate,_name,now);
-        eventsHistory.newLOC(_name);
+        _emitNewLOC(_name);
         return store.count(offeringCompaniesNames);
     }
 
-    function setLOC(bytes32 _name, bytes32 _newname, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) returns(bool) {
-        if(_name == 0 || _newname == 0)
+    function setLOC(bytes32 _name, bytes32 _newname, bytes32 _website, uint _issueLimit, bytes32 _publishedHash, uint _expDate) onlyAuthorized() locExists(_name) locIsNotActive(_name) returns(bool) {
+        if(_newname == bytes32(0))
             return false;
         if(!(_newname == _name)) {
             store.set(offeringCompaniesNames,_name,_newname);
@@ -159,6 +140,7 @@ contract LOCManager is Managed {
             store.set(expDate,_newname,store.get(expDate,_name));
             store.set(currency,_newname,store.get(currency,_name));
             store.set(createDate,_newname,store.get(createDate,_name));
+            _emitUpdLOCName(_name,_newname);
             _name = _newname;
         }
         if(!(_website == store.get(website,_name))) {
@@ -168,20 +150,18 @@ contract LOCManager is Managed {
             store.set(issueLimit,_name,_issueLimit);
         }
         if(!(_publishedHash == store.get(publishedHash,_name))) {
-            eventsHistory.hashUpdate(store.get(publishedHash,_name),_publishedHash);
-
+            _emitHashUpdate(_name,store.get(publishedHash,_name),_publishedHash);
             store.set(publishedHash,_name,_publishedHash);
         }
         if(!(_expDate == store.get(expDate,_name))) {
             store.set(expDate,_name,_expDate);
         }
-        eventsHistory.updLOCValue(_name);
         return true;
     }
 
     function setStatus(bytes32 _name, Status _status) locExists(_name) multisig {
         if(!(store.get(status,_name) == uint(_status))) {
-            eventsHistory.updLOCStatus(_name, store.get(status,_name), uint(_status));
+            _emitUpdLOCStatus(_name, store.get(status,_name), uint(_status));
             store.set(status,_name,uint(_status));
         } else {
 
@@ -227,6 +207,38 @@ contract LOCManager is Managed {
 
     function getLOCCount() constant returns(uint) {
         return store.count(offeringCompaniesNames);
+    }
+
+    function _emitNewLOC(bytes32 _locName) internal {
+        LOCManager(getEventsHistory()).emitNewLOC(_locName);
+    }
+
+    function _emitRemLOC(bytes32 _locName) internal {
+        LOCManager(getEventsHistory()).emitRemLOC(_locName);
+    }
+
+    function _emitUpdLOCName(bytes32 _locName, bytes32 _newName) {
+        LOCManager(getEventsHistory()).emitUpdLOCName(_locName,_newName);
+    }
+
+    function _emitUpdLOCStatus(bytes32 _locName, uint _oldStatus, uint _newStatus) {
+        LOCManager(getEventsHistory()).emitUpdLOCStatus(_locName,_oldStatus,_newStatus);
+    }
+
+    function _emitHashUpdate(bytes32 _locName, bytes32 _oldHash, bytes32 _newHash) {
+        LOCManager(getEventsHistory()).emitHashUpdate(_locName,_oldHash,_newHash);
+    }
+
+    function _emitReissue(bytes32 _locName, uint _value) internal {
+        LOCManager(getEventsHistory()).emitReissue(_locName,_value);
+    }
+
+    function _emitRevoke(bytes32 _locName, uint _value) internal {
+        LOCManager(getEventsHistory()).emitRevoke(_locName,_value);
+    }
+
+    function _emitError(bytes32 _message) internal {
+
     }
 
     function()

@@ -32,7 +32,7 @@ contract ContractsManager is Managed {
         }
     }
 
-    function ContractsManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function ContractsManager(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
         contractsAddresses.init('contracts');
         contractsTypes.init('contractTypes');
     }

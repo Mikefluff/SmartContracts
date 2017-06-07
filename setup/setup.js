@@ -6,13 +6,12 @@ const ChronoBankAssetWithFeeProxy = artifacts.require('./ChronoBankAssetWithFeeP
 const ChronoBankAsset = artifacts.require('./ChronoBankAsset.sol')
 const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol')
 const LOCManager = artifacts.require('./LOCManager.sol')
-const ChronoMintEmitter = artifacts.require("./ChronoMintEmitter.sol");
 const ContractsManager = artifacts.require('./ContractsManager.sol')
 const Exchange = artifacts.require('./Exchange.sol')
 const ERC20Manager = artifacts.require("./ERC20Manager.sol");
 const ExchangeManager = artifacts.require("./ExchangeManager.sol");
 const AssetsManager = artifacts.require("./AssetsManager");
-const Shareable = artifacts.require("./PendingManager.sol");
+const PendingManager = artifacts.require("./PendingManager.sol");
 const TimeHolder = artifacts.require('./TimeHolder.sol')
 const Rewards = artifacts.require('./Rewards.sol')
 const Storage = artifacts.require('./Storage.sol');
@@ -98,7 +97,7 @@ var setup = function (callback) {
       Storage.deployed(),
       UserManager.deployed(),
       ContractsManager.deployed(),
-      Shareable.deployed(),
+      PendingManager.deployed(),
       LOCManager.deployed(),
       ChronoBankPlatform.deployed(),
       ChronoBankAsset.deployed(),
@@ -112,7 +111,6 @@ var setup = function (callback) {
       Vote.deployed(),
       TimeHolder.deployed(),
       ChronoBankPlatformEmitter.deployed(),
-      ChronoMintEmitter.deployed(),
       EventsHistory.deployed()
     ])
   }).then((instances) => {
@@ -134,7 +132,6 @@ var setup = function (callback) {
       vote,
       timeHolder,
       chronoBankPlatformEmitter,
-      chronoMintEmitter,
       eventsHistory
     ] = instances
 
@@ -159,26 +156,38 @@ var setup = function (callback) {
     module.exports.chronoBankAssetWithFeeProxy = chronoBankAssetWithFeeProxy
     module.exports.vote = vote
     module.exports.chronoMintEmitter = chronoMintEmitter
+  }).then(() => {
     console.log('setup storage')
     return storage.setManager(ManagerMock.address)
-    console.log('ling addresses')
   }).then(() => {
-    return Promise.all([
-      contractsManager.init(),
-      userManager.init(ContractsManager.address),
-      shareable.init(ContractsManager.address),
-      chronoMint.init(ContractsManager.address),
-      assetsManager.init(chronoBankPlatform.address, contractsManager.address, ProxyFactory.address),
-      erc20Manager.init(ContractsManager.address),
-      exchangeManager.init(ContractsManager.address),
-      rewards.init(ContractsManager.address, 0),
-      vote.init(ContractsManager.address),
-      timeHolder.init(ContractsManager.address, ChronoBankAssetProxy.address),
-      chronoBankAsset.init(ChronoBankAssetProxy.address, params),
-      chronoBankAssetWithFee.init(ChronoBankAssetWithFeeProxy.address, params),
-      chronoBankAssetProxy.init(ChronoBankPlatform.address, TIME_SYMBOL, TIME_NAME, params),
-      chronoBankAssetWithFeeProxy.init(ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, params)
-    ])
+    console.log('link addresses')
+    return   contractsManager.init()
+  }).then(() => {
+    return  userManager.init(ContractsManager.address)
+  }).then(() => {
+    return  shareable.init(ContractsManager.address)
+  }).then(() => {
+    return  chronoMint.init(ContractsManager.address)
+  }).then(() => {
+    return  assetsManager.init(chronoBankPlatform.address, contractsManager.address, ProxyFactory.address)
+  }).then(() => {
+    return   erc20Manager.init(ContractsManager.address)
+  }).then(() => {
+    return  exchangeManager.init(ContractsManager.address)
+  }).then(() => {
+    return  rewards.init(ContractsManager.address, 0)
+  }).then(() => {
+    return  vote.init(ContractsManager.address)
+  }).then(() => {
+    return  timeHolder.init(ContractsManager.address, ChronoBankAssetProxy.address)
+  }).then(() => {
+    return  chronoBankAsset.init(ChronoBankAssetProxy.address, params)
+  }).then(() => {
+    return  chronoBankAssetWithFee.init(ChronoBankAssetWithFeeProxy.address, params)
+  }).then(() => {
+    return  chronoBankAssetProxy.init(ChronoBankPlatform.address, TIME_SYMBOL, TIME_NAME, params)
+  }).then(() => {
+    return  chronoBankAssetWithFeeProxy.init(ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, params)
   }).then(() => {
   //  console.log('setup rewards')
   //  console.log('--addAsset')
@@ -195,34 +204,7 @@ var setup = function (callback) {
     console.log('--add to chronoBankPlatform')
     return chronoBankPlatform.setupEventsHistory(
       EventsHistory.address,
-      paramsGas
-    ).then(() => {
-      console.log('--add to chronoMint')
-      return chronoMint.setupEventsHistory(EventsHistory.address, paramsGas)
-    }).then(() => {
-      console.log('--add to userManager')
-      return userManager.setupEventsHistory(EventsHistory.address, paramsGas)
-    }).then(() => {
-      console.log('--add to rewards')
-      return rewards.setupEventsHistory(EventsHistory.address, paramsGas);
-    }).then(() => {
-      const mintEvents = [
-        'newLOC',
-        'remLOC',
-        'updLOCStatus',
-        'updLOCValue',
-        'reissue',
-        'hashUpdate',
-        'cbeUpdate'
-      ]
-
-      return Promise.all(mintEvents.map(event => {
-        console.log(`--addEmitter chronoMintEmitter.${event}`)
-        return eventsHistory.addEmitter(chronoMintEmitter.contract[event].getData.apply(this, fakeArgs).slice(0, 10),
-          ChronoMintEmitter.address,
-          paramsGas
-        )
-      })).catch(e => console.error('emitter error', e))
+      paramsGas)
     }).then(() => {
       const platformEvent = [
         'emitTransfer',
@@ -233,7 +215,6 @@ var setup = function (callback) {
         'emitRecovery',
         'emitError'
       ]
-
       return Promise.all(platformEvent.map(event => {
         console.log(`--addEmitter chronoBankPlatformEmitter.${event}`)
         return eventsHistory.addEmitter(chronoBankPlatformEmitter.contract[event].getData.apply(this, fakeArgs).slice(0, 10),
@@ -242,19 +223,17 @@ var setup = function (callback) {
         )
       })).catch(e => console.error('emitter error', e))
     }).then(() => {
-      console.log('--update version in chronoMint')
-      return eventsHistory.addVersion(chronoMint.address, 'Origin', 'Initial version.')
-    }).then(() => {
-      return eventsHistory.addVersion(userManager.address, 'Origin', 'Initial version.')
-    }).then(() => {
       console.log('--update version in chronoBankPlatform')
       return eventsHistory.addVersion(chronoBankPlatform.address, 'Origin', 'Initial version.')
     }).catch(e => console.error(e => 'eventHistory error', e))
-  }).then(() => {
+    .then(() => {
     console.log('chronoBankPlatform.issueAsset')
     console.log('--issue TIME')
     return chronoBankPlatform.issueAsset(TIME_SYMBOL, 1000000000000, TIME_NAME, TIME_DESCRIPTION, BASE_UNIT, IS_NOT_REISSUABLE, paramsGas
     ).then(() => {
+      console.log('--issue LHT')
+      return chronoBankPlatform.issueAsset(LHT_SYMBOL, 0, LHT_NAME, LHT_DESCRIPTION, BASE_UNIT, IS_REISSUABLE, paramsGas)
+    }).then(() => {
       console.log('--issue LHT')
       return chronoBankPlatform.issueAsset(LHT_SYMBOL, 0, LHT_NAME, LHT_DESCRIPTION, BASE_UNIT, IS_REISSUABLE, paramsGas)
     })

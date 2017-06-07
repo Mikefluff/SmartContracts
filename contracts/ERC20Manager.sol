@@ -64,7 +64,7 @@ contract ERC20Manager is Managed {
         }
     }
 
-    function ERC20Manager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function ERC20Manager(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
         tokenAddresses.init('tokenAddresses');
         tokenBySymbol.init('tokeBySymbol');
         name.init('name');

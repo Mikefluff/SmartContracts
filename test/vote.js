@@ -73,8 +73,8 @@ contract('Vote', function(accounts) {
     });
 
     it("AssetsManager should be able to send 100 TIME to owner", function() {
-      return Setup.assetsManager.sendAsset.call(bytes32(SYMBOL),owner,50000).then(function(r) {
-        return Setup.assetsManager.sendAsset(bytes32(SYMBOL),owner,50000,{from: accounts[0], gas: 3000000}).then(function() {
+      return Setup.assetsManager.sendAsset.call(bytes32(SYMBOL),owner,100000000).then(function(r) {
+        return Setup.assetsManager.sendAsset(bytes32(SYMBOL),owner,100000000,{from: accounts[0], gas: 3000000}).then(function() {
           assert.isOk(r);
         });
       });
@@ -82,7 +82,7 @@ contract('Vote', function(accounts) {
 
     it("check Owner has 100 TIME", function() {
       return Setup.chronoBankAssetProxy.balanceOf.call(owner).then(function(r) {
-        assert.equal(r,50000);
+        assert.equal(r,100000000);
       });
     });
 
@@ -415,6 +415,14 @@ contract('Vote', function(accounts) {
       })
     })
 
+    it("should be able to show number of Votes for each Option for Poll 0", function() {
+      return Setup.vote.getOptionsVotesForPoll.call(0).then((r) => {
+        console.log(r);
+        assert.equal(r[0],25)
+        assert.equal(r[1],50)
+      })
+    })
+
     it("should be able to withdraw 5 TIME from owner1", function() {
       return Setup.timeHolder.withdrawShares.call(5, {from: owner1}).then((r) => {
         return Setup.timeHolder.withdrawShares(5, {from: owner1}).then(() => {
@@ -425,13 +433,14 @@ contract('Vote', function(accounts) {
 
     it("should be able to show number of Votes for each Option for Poll 0", function() {
       return Setup.vote.getOptionsVotesForPoll.call(0).then((r) => {
+        console.log(r);
         assert.equal(r[0],25)
         assert.equal(r[1],45)
       })
     })
 
     it("shouldn't show Poll 0 as finished", function() {
-      return Setup.vote.polls.call(0).then((r) => {
+      return Setup.vote.getPoll.call(0).then((r) => {
         assert.equal(r[6],true)
       })
     })
@@ -463,17 +472,17 @@ contract('Vote', function(accounts) {
       })
     })
 
-    it("owner should be able to approve 50 TIME to Vote", function() {
-      return Setup.chronoBankAssetProxy.approve.call(Setup.timeHolder.address, 34975, {from: accounts[0]}).then((r) => {
-        return Setup.chronoBankAssetProxy.approve(Setup.timeHolder.address, 34975, {from: accounts[0]}).then(() => {
+    it("owner should be able to approve 9999975 TIME to Vote", function() {
+      return Setup.chronoBankAssetProxy.approve.call(Setup.timeHolder.address, 99999975, {from: accounts[0]}).then((r) => {
+        return Setup.chronoBankAssetProxy.approve(Setup.timeHolder.address, 99999975, {from: accounts[0]}).then(() => {
           assert.isOk(r)
         })
       })
     })
 
-    it("should be able to deposit 34975 TIME from owner", function() {
-      return Setup.timeHolder.deposit.call(34975, {from: accounts[0]}).then((r) => {
-        return Setup.timeHolder.deposit(34975, {from: accounts[0]}).then(() => {
+    it("should be able to deposit 9999975 TIME from owner", function() {
+      return Setup.timeHolder.deposit.call(99999975, {from: accounts[0]}).then((r) => {
+        return Setup.timeHolder.deposit(99999975, {from: accounts[0]}).then(() => {
           assert.isOk(r)
         })
       })
@@ -481,25 +490,28 @@ contract('Vote', function(accounts) {
 
     it("should show 50 TIME owner balance", function() {
       return Setup.timeHolder.depositBalance.call(owner, {from: accounts[0]}).then((r) => {
-        assert.equal(r,35000)
+        assert.equal(r,100000000)
       })
     })
 
     it("should show Poll 0 as finished", function() {
       return Setup.vote.getPoll.call(0).then((r) => {
+        console.log(r);
         assert.equal(r[6],false)
       })
     })
 
     it("should decrese active Polls count", function() {
       return Setup.vote.getActivePollsCount.call().then((r) => {
+        console.log(r);
         assert.equal(r, 19)
       })
     })
 
     it("should be able to show number of Votes for each Option for Poll 0", function() {
       return Setup.vote.getOptionsVotesForPoll.call(0).then((r) => {
-        assert.equal(r[0],35000)
+        console.log(r);
+        assert.equal(r[0],100000000)
         assert.equal(r[1],0)
       })
     })
@@ -521,6 +533,7 @@ contract('Vote', function(accounts) {
 
     it("should decrese active Polls count", function() {
       return Setup.vote.getActivePollsCount.call().then((r) => {
+        console.log(r);
         assert.equal(r, 18)
       })
     })

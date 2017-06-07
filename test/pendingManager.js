@@ -40,6 +40,17 @@ contract('Pending Manager', function(accounts) {
 
   context("with one CBE key", function(){
 
+    it('should receive the right ContractsManager contract address after init() call', () => {
+      return Setup.shareable.getContractsManager.call()
+        .then((address) => { console.log(address); assert.equal(address, Setup.contractsManager.address) });
+    });
+
+    it("can provide PendingManager address.", function() {
+      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.PendingManager).then(function(r) {
+        assert.equal(r,Setup.shareable.address);
+      });
+    });
+
     it("shows owner as a CBE key.", function() {
       return Setup.chronoMint.isAuthorized.call(owner).then(function(r) {
         assert.isOk(r);

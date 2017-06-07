@@ -1,27 +1,26 @@
-var Reverter = require('./helpers/reverter');
-var bytes32 = require('./helpers/bytes32');
-var bytes32fromBase58 = require('./helpers/bytes32fromBase58');
-var Require = require("truffle-require");
-var Config = require("truffle-config");
-var eventsHelper = require('./helpers/eventsHelper');
-var Setup = require('../setup/setup');
+const Reverter = require('./helpers/reverter');
+const bytes32 = require('./helpers/bytes32');
+const bytes32fromBase58 = require('./helpers/bytes32fromBase58');
+const Require = require("truffle-require");
+const Config = require("truffle-config");
+const eventsHelper = require('./helpers/eventsHelper');
+const Setup = require('../setup/setup');
 
 contract('ChronoMint', function(accounts) {
-  var owner = accounts[0];
-  var owner1 = accounts[1];
-  var owner2 = accounts[2];
-  var owner3 = accounts[3];
-  var owner4 = accounts[4];
-  var owner5 = accounts[5];
-  var nonOwner = accounts[6];
-  var conf_sign;
-  var conf_sign2;
-  var conf_sign3;
-  var txId;
-  var watcher;
-  var unix = Math.round(+new Date()/1000);
-  var Status = {maintenance:0,active:1, suspended:2, bankrupt:3};
-
+  let owner = accounts[0];
+  let owner1 = accounts[1];
+  let owner2 = accounts[2];
+  let owner3 = accounts[3];
+  let owner4 = accounts[4];
+  let owner5 = accounts[5];
+  let nonOwner = accounts[6];
+  let conf_sign;
+  let conf_sign2;
+  let conf_sign3;
+  let txId;
+  let watcher;
+  let unix = Math.round(+new Date()/1000);
+  const Status = {maintenance:0,active:1, suspended:2, bankrupt:3};
   const SYMBOL = 'TIME';
   const SYMBOL2 = 'LHT';
   const NAME = 'Time Token';

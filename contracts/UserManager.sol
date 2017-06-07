@@ -1,21 +1,15 @@
 pragma solidity ^0.4.8;
 
 import "./Managed.sol";
+import "./UserManagerEmitter.sol";
 
-contract Emitter {
-    function cbeUpdate(address key);
-    function setRequired(uint required);
-    function hashUpdate(bytes32 oldHash, bytes32 newHash);
-    function emitError(bytes32 _message);
-}
-
-contract UserManager is Managed {
+contract UserManager is Managed, UserManagerEmitter {
     StorageInterface.UInt req;
     StorageInterface.AddressesSet members;
     StorageInterface.AddressesSet admins;
     StorageInterface.AddressBytes32Mapping hashes;
 
-    function UserManager(Storage _store, bytes32 _crate) EventsHistoryAndStorageAdapter(_store, _crate) {
+    function UserManager(Storage _store, bytes32 _crate) StorageAdapter(_store, _crate) {
         req.init('req');
         admins.init('admins');
         members.init('members');
@@ -32,33 +26,11 @@ contract UserManager is Managed {
         return true;
     }
 
-    // Should use interface of the emitter, but address of events history.
-    Emitter public eventsHistory;
-
-    /**
-     * Emits Error event with specified error message.
-     *
-     * Should only be used if no state changes happened.
-     *
-     * @param _message error message.
-     */
-    function _error(bytes32 _message) internal {
-        eventsHistory.emitError(_message);
-    }
-    /**
-     * Sets EventsHstory contract address.
-     *
-     * Can be set only once, and only by contract owner.
-     *
-     * @param _eventsHistory EventsHistory contract address.
-     *
-     * @return success.
-     */
     function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
-        if (address(eventsHistory) != 0) {
+        if (getEventsHistory() != 0x0) {
             return false;
         }
-        eventsHistory = Emitter(_eventsHistory);
+        _setEventsHistory(_eventsHistory);
         return true;
     }
 
@@ -66,20 +38,20 @@ contract UserManager is Managed {
         if (!getCBE(_key)) { // Make sure that the key being submitted isn't already CBE
             if (addMember(_key, true)) {
                 setMemberHash(_key, _hash);
-                eventsHistory.cbeUpdate(_key);
+                _emitCBEUpdate(_key);
             }
         } else {
-            _error("This address is already CBE");
+            _emitError("This address is already CBE");
         }
     }
 
     function revokeCBE(address _key) multisig {
         if (getCBE(_key)) { // Make sure that the key being revoked is exist and is CBE
             setCBE(_key, false);
-            eventsHistory.cbeUpdate(_key);
+            _emitCBEUpdate(_key);
         }
         else {
-            _error("This address in not CBE");
+            _emitError("This address in not CBE");
         }
     }
 
@@ -95,11 +67,11 @@ contract UserManager is Managed {
         createMemberIfNotExist(key);
         bytes32 oldHash = getMemberHash(key);
         if(!(_hash == oldHash)) {
-            eventsHistory.hashUpdate(oldHash, _hash);
+            _emitHashUpdate(key,oldHash, _hash);
             setHashes(key, _hash);
             return true;
         }
-        _error("Same hash set");
+        _emitError("Same hash set");
         return false;
     }
 
@@ -108,14 +80,13 @@ contract UserManager is Managed {
     }
 
     function setRequired(uint _required) multisig returns (bool) {
-            if(!(_required <= store.count(admins)))
+            if(!(_required <= store.count(admins))) {
+                _emitError("Required to high");
                 return false;
+            }
             store.set(req,_required);
-            eventsHistory.setRequired(_required);
+            _emitSetRequired(_required);
             return true;
-
-        //_error("Required to high");
-        //return false;
     }
 
     function addMember(address key, bool isCBE) internal returns(bool){
@@ -136,16 +107,8 @@ contract UserManager is Managed {
         return true;
     }
 
-    function setHashes(address key, bytes32 hash) {
+    function setHashes(address key, bytes32 hash) internal {
         store.set(hashes,key,hash);
-    }
-
-    function setExchange(address _member, address _exchange) returns (bool) {
-
-    }
-
-    function setAsset(address _member, address _asset) returns (bool) {
-
     }
 
     function getMemberHash(address key) constant returns (bytes32) {
@@ -178,6 +141,19 @@ contract UserManager is Managed {
             _hashes[i] = store.get(hashes,store.get(admins,i));
         }
         return (store.get(admins), _hashes);
+    }
+
+    function _emitCBEUpdate(address key) {
+        UserManager(getEventsHistory()).emitCBEUpdate(key);
+    }
+    function _emitSetRequired(uint required) {
+        UserManager(getEventsHistory()).emitSetRequired(required);
+    }
+    function _emitHashUpdate(address key,bytes32 oldHash, bytes32 newHash) {
+        UserManager(getEventsHistory()).emitHashUpdate(key,oldHash,newHash);
+    }
+    function _emitError(bytes32 _error) {
+        UserManager(getEventsHistory()).emitError(_error);
     }
 
     function()

@@ -3,14 +3,18 @@ pragma solidity ^0.4.8;
 import {PendingManagerInterface as Shareable} from "./PendingManagerInterface.sol";
 import "./UserManagerInterface.sol";
 import "./ContractsManagerInterface.sol";
-import './EventsHistoryAndStorageAdapter.sol';
+import './StorageAdapter.sol';
 
-contract Managed is EventsHistoryAndStorageAdapter {
+contract Managed is StorageAdapter {
 
     StorageInterface.Address contractsManager;
 
     function Managed() {
         contractsManager.init('contractsManager');
+    }
+
+    function getContractsManager() constant returns(address) {
+        return store.get(contractsManager);
     }
 
     modifier onlyAuthorized() {
@@ -23,7 +27,7 @@ contract Managed is EventsHistoryAndStorageAdapter {
         address shareable = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.PendingManager);
         if (msg.sender != shareable) {
             bytes32 _r = sha3(msg.data);
-            Shareable(shareable).addTx(_r, msg.data, this, msg.sender);
+            //Shareable(shareable).addTx(_r, msg.data, this, msg.sender);
         }
         else {
             _;
