@@ -375,11 +375,11 @@ contract('Vote', function(accounts) {
     })
 
     it("shouldn't be able to create more then 20 active Polls", function() {
-      return createPolls(300).then(() => {
+      return createPolls(100).then(() => {
         return Setup.vote.getActivePollsCount.call().then((r) => {
           return Setup.vote.getInactivePollsCount.call().then((r2) => {
             assert.equal(r, 20)
-            assert.equal(r2, 281)
+            assert.equal(r2, 81)
           })
         })
       })
@@ -390,7 +390,7 @@ contract('Vote', function(accounts) {
         return Setup.vote.getActivePollsCount.call().then((r) => {
           return Setup.vote.getInactivePollsCount.call().then((r2) => {
             assert.equal(r, 20)
-            assert.equal(r2, 280)
+            assert.equal(r2, 80)
           })
         })
       })
@@ -401,7 +401,7 @@ contract('Vote', function(accounts) {
         return Setup.vote.getActivePollsCount.call().then((r) => {
           return Setup.vote.getInactivePollsCount.call().then((r2) => {
             assert.equal(r, 20)
-            assert.equal(r2, 280)
+            assert.equal(r2, 80)
           })
         })
       })
@@ -414,7 +414,7 @@ contract('Vote', function(accounts) {
             return Setup.vote.getInactivePollsCount.call().then((r3) => {
               assert.isOk(r)
               assert.equal(r2, 20)
-              assert.equal(r3, 280)
+              assert.equal(r3, 80)
             })
           })
         })
