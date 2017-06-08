@@ -249,15 +249,6 @@ contract Rewards is Managed, RewardsEmitter {
         return false;
     }
 
-    function addAsset(address _asset) onlyContractOwner returns(bool) {
-        if(_asset != 0x0 && assetsId[_asset] == 0) {
-            assetsId[_asset] = assets.length;
-            assets.push(_asset);
-            return true;
-        }
-        return false;
-    }
-
     function registerAsset(Asset _asset) returns(bool) {
         address timeHolder = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.TimeHolder);
         if (TimeHolder(timeHolder).sharesContract() == _asset) {
