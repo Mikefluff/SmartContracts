@@ -34,14 +34,16 @@ contract UserManager is Managed, UserManagerEmitter {
         return true;
     }
 
-    function addCBE(address _key, bytes32 _hash) multisig {
+    function addCBE(address _key, bytes32 _hash) multisig returns(bool) {
         if (!getCBE(_key)) { // Make sure that the key being submitted isn't already CBE
             if (addMember(_key, true)) {
-                setMemberHash(_key, _hash);
+                setMemberHashInt(_key, _hash);
                 _emitCBEUpdate(_key);
+                return true;
             }
         } else {
             _emitError("This address is already CBE");
+            return false;
         }
     }
 
@@ -60,11 +62,11 @@ contract UserManager is Managed, UserManagerEmitter {
     }
 
     function setMemberHash(address key, bytes32 _hash) onlyAuthorized returns (bool) {
+        createMemberIfNotExist(key);
         return setMemberHashInt(key, _hash);
     }
 
     function setMemberHashInt(address key, bytes32 _hash) internal returns (bool) {
-        createMemberIfNotExist(key);
         bytes32 oldHash = getMemberHash(key);
         if(!(_hash == oldHash)) {
             _emitHashUpdate(key,oldHash, _hash);

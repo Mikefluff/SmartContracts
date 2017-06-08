@@ -101,10 +101,11 @@ contract ExchangeManager is Managed, ExchangeManagerEmitter {
         return true;
     }
 
-    function createExchange(string _symbol, bool _useTicker) returns(uint) {
-        address _erc20Manager = ContractsManager(store.get(contractsManager)).getContractAddressByType(ContractsManager.ContractType.ERC20Manager);
+    function createExchange(bytes32 _symbol, bool _useTicker) returns(uint) {
+        address _contractsManager = store.get(contractsManager);
+        address _erc20Manager = ContractsManager(_contractsManager).getContractAddressByType(ContractsManager.ContractType.ERC20Manager);
         address tokenAddr = ERC20Manager(_erc20Manager).getTokenAddressBySymbol(_symbol);
-        address rewards = ContractsManager(store.get(contractsManager)).getContractAddressByType(ContractsManager.ContractType.Rewards);
+        address rewards = ContractsManager(_contractsManager).getContractAddressByType(ContractsManager.ContractType.Rewards);
         if(tokenAddr != 0x0 && rewards !=  0x0) {
             address exchangeAddr = new Exchange();
             address tickerAddr;

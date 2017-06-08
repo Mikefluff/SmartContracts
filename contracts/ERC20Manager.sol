@@ -2,8 +2,9 @@ pragma solidity ^0.4.11;
 
 import "./Managed.sol";
 import {ERC20Interface as Asset} from "./ERC20Interface.sol";
+import "./ERC20ManagerEmitter.sol";
 
-contract ERC20Manager is Managed {
+contract ERC20Manager is Managed, ERC20ManagerEmitter {
 
     event LogAddToken(
     address token,
@@ -84,6 +85,14 @@ contract ERC20Manager is Managed {
         return true;
     }
 
+    function setupEventsHistory(address _eventsHistory) onlyAuthorized returns(bool) {
+        if (getEventsHistory() != 0x0) {
+            return false;
+        }
+        _setEventsHistory(_eventsHistory);
+        return true;
+    }
+
     /// @dev Allows owner to add a new token to the registry.
     /// @param _token Address of new token.
     /// @param _name Name of new token.
@@ -100,9 +109,9 @@ contract ERC20Manager is Managed {
     uint8 _decimals,
     bytes32 _ipfsHash,
     bytes32 _swarmHash)
-    public
     tokenSymbolDoesNotExists(_symbol)
-    tokenDoesNotExist(_token) returns(bool)
+    tokenDoesNotExist(_token)
+    returns(bool)
     {
         Asset(_token).totalSupply();
         store.add(tokenAddresses,_token);
@@ -203,7 +212,6 @@ contract ERC20Manager is Managed {
     /// @dev Allows owner to remove an existing token from the registry.
     /// @param _token Address of existing token.
     function removeToken(address _token)
-    public
     onlyAuthorized
     tokenExists(_token) returns(bool)
     {
@@ -213,7 +221,6 @@ contract ERC20Manager is Managed {
     /// @dev Allows owner to remove an existing token from the registry.
     /// @param _symbol Symbol of existing token.
     function removeTokenBySymbol(bytes32 _symbol)
-    public
     onlyAuthorized
     tokenSymbolExists(_symbol) returns(bool)
     {
@@ -303,5 +310,9 @@ contract ERC20Manager is Managed {
     /// @return Array of token addresses.
     function getTokenAddresses() constant returns (address[]) {
         return store.get(tokenAddresses);
+    }
+
+    function _emitError(bytes32 _message) {
+        ERC20Manager(getEventsHistory()).emitError(_message);
     }
 }

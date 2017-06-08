@@ -103,7 +103,7 @@ contract LOCManager is Managed, LOCManagerEmitter {
         return false;
     }
 
-    function removeLOC(bytes32 _name) locExists(_name) multisig locIsNotActive(_name) returns (bool) {
+    function removeLOC(bytes32 _name) locExists(_name) locIsNotActive(_name) multisig returns (bool) {
         store.remove(offeringCompaniesNames,_name);
         store.set(website,_name,0);
         store.set(issueLimit,_name,0);
@@ -159,13 +159,14 @@ contract LOCManager is Managed, LOCManagerEmitter {
         return true;
     }
 
-    function setStatus(bytes32 _name, Status _status) locExists(_name) multisig {
+    function setStatus(bytes32 _name, Status _status) locExists(_name) multisig returns(bool){
         if(!(store.get(status,_name) == uint(_status))) {
             _emitUpdLOCStatus(_name, store.get(status,_name), uint(_status));
             store.set(status,_name,uint(_status));
         } else {
-
+            return false;
         }
+        return true;
     }
 
     function getLOCByName(bytes32 _name) constant returns(bytes32 _locName, bytes32 _website,

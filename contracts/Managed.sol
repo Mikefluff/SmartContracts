@@ -27,7 +27,7 @@ contract Managed is StorageAdapter {
         address shareable = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.PendingManager);
         if (msg.sender != shareable) {
             bytes32 _r = sha3(msg.data);
-            //Shareable(shareable).addTx(_r, msg.data, this, msg.sender);
+            Shareable(shareable).addTx(_r, msg.data, this, msg.sender);
         }
         else {
             _;

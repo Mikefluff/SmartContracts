@@ -8,16 +8,17 @@ const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol')
 const LOCManager = artifacts.require('./LOCManager.sol')
 const ContractsManager = artifacts.require('./ContractsManager.sol')
 const Exchange = artifacts.require('./Exchange.sol')
-const ERC20Manager = artifacts.require("./ERC20Manager.sol");
-const ExchangeManager = artifacts.require("./ExchangeManager.sol");
-const AssetsManager = artifacts.require("./AssetsManager");
-const Shareable = artifacts.require("./PendingManager.sol");
+const ERC20Manager = artifacts.require("./ERC20Manager.sol")
+const ExchangeManager = artifacts.require("./ExchangeManager.sol")
+const AssetsManager = artifacts.require("./AssetsManager")
+const Shareable = artifacts.require("./PendingManager.sol")
 const TimeHolder = artifacts.require('./TimeHolder.sol')
 const Rewards = artifacts.require('./Rewards.sol')
-const Storage = artifacts.require('./Storage.sol');
-const UserManager = artifacts.require("./UserManager.sol");
-const ManagerMock = artifacts.require('./ManagerMock.sol');
-const ProxyFactory = artifacts.require("./ProxyFactory.sol");
+const Storage = artifacts.require('./Storage.sol')
+const UserManager = artifacts.require("./UserManager.sol")
+const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
+const ManagerMock = artifacts.require('./ManagerMock.sol')
+const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const Vote = artifacts.require('./Vote.sol')
 
 const TIME_SYMBOL = 'TIME'
@@ -65,7 +66,7 @@ let chronoBankAssetProxy
 let chronoBankAssetWithFee
 let chronoBankAssetWithFeeProxy
 let vote
-let chronoMintEmitter
+let multiEventsHistory
 
 let accounts
 let params
@@ -111,7 +112,8 @@ var setup = function (callback) {
       Vote.deployed(),
       TimeHolder.deployed(),
       ChronoBankPlatformEmitter.deployed(),
-      EventsHistory.deployed()
+      EventsHistory.deployed(),
+      MultiEventsHistory.deployed()
     ])
   }).then((instances) => {
     [
@@ -132,7 +134,8 @@ var setup = function (callback) {
       vote,
       timeHolder,
       chronoBankPlatformEmitter,
-      eventsHistory
+      eventsHistory,
+      multiEventsHistory
     ] = instances
 
   }).then(() => {
@@ -158,10 +161,6 @@ var setup = function (callback) {
       chronoBankAssetWithFeeProxy.init(ChronoBankPlatform.address, LHT_SYMBOL, LHT_NAME, params)
     ])
   }).then(() => {
-    console.log('setup rewards')
-    console.log('--addAsset')
-    return rewards.addAsset(ChronoBankAssetWithFeeProxy.address)
-  }).then(() => {
     console.log('setup timeHolder')
     console.log('--add reward listener')
     return timeHolder.addListener(rewards.address).then(() => {
@@ -170,6 +169,46 @@ var setup = function (callback) {
     }).catch(e => console.error('timeHolder error', e))
   }).then(() => {
     console.log('setup event history')
+    console.log('--add to userManager')
+    userManager.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(userManager.address)
+  }).then(() => {
+    console.log('--add to shareable')
+    shareable.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(shareable.address)
+  }).then(() => {
+    console.log('--add to LOCManager')
+    chronoMint.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(chronoMint.address)
+  }).then(() => {
+    console.log('--add to erc20Manager')
+    erc20Manager.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(erc20Manager.address)
+  }).then(() => {
+    console.log('--add to assetsManager')
+    assetsManager.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(assetsManager.address)
+  }).then(() => {
+    console.log('--add to exchangeManager')
+    exchangeManager.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(exchangeManager.address)
+  }).then(() => {
+    console.log('--add to rewards')
+    rewards.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(rewards.address)
+  }).then(() => {
+    console.log('--add to vote')
+    vote.setupEventsHistory(multiEventsHistory.address)
+  }).then(() => {
+    multiEventsHistory.authorize(vote.address)
+  }).then(() => {
     console.log('--add to chronoBankPlatform')
     return chronoBankPlatform.setupEventsHistory(
       EventsHistory.address,

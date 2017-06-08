@@ -34,6 +34,33 @@ contract('Exchange Manager', function(accounts) {
 
   context("initial tests", function () {
 
+    it("allow add TIME Asset", function() {
+      return Setup.assetsManager.addAsset.call(Setup.chronoBankAssetProxy.address,'TIME', owner).then(function(r) {
+        return Setup.assetsManager.addAsset(Setup.chronoBankAssetProxy.address,'TIME', owner, {
+          from: accounts[0],
+          gas: 3000000
+        }).then(function(tx) {
+          return Setup.assetsManager.getAssets.call().then(function(r2) {
+            assert.equal(r,true);
+            assert.equal(r2.length,1);
+          });
+        });
+      });
+    });
+
+    it("allow add LHT Asset", function() {
+      return Setup.assetsManager.addAsset.call(Setup.chronoBankAssetWithFeeProxy.address,bytes32('LHT'), Setup.chronoMint.address).then(function(r) {
+        return Setup.assetsManager.addAsset(Setup.chronoBankAssetWithFeeProxy.address,bytes32('LHT'), Setup.chronoMint.address, {
+          from: accounts[0],
+          gas: 3000000
+        }).then(function(tx) {
+          return Setup.assetsManager.getAssets.call().then(function(r2) {
+            assert.equal(r,true);
+            assert.equal(r2.length,2);
+          });
+        });
+      });
+    });
 
 
   })

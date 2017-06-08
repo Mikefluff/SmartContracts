@@ -1,12 +1,14 @@
-const Reverter = require('./helpers/reverter');
-const bytes32 = require('./helpers/bytes32');
-const bytes32fromBase58 = require('./helpers/bytes32fromBase58');
-const Require = require("truffle-require");
-const Config = require("truffle-config");
-const eventsHelper = require('./helpers/eventsHelper');
-const Setup = require('../setup/setup');
+const Reverter = require('./helpers/reverter')
+const bytes32 = require('./helpers/bytes32')
+const bytes32fromBase58 = require('./helpers/bytes32fromBase58')
+const Require = require("truffle-require")
+const Config = require("truffle-config")
+const eventsHelper = require('./helpers/eventsHelper')
+const Setup = require('../setup/setup')
+const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
+const PendingManager = artifacts.require("./PendingManager.sol")
 
-contract('ChronoMint', function(accounts) {
+contract('LOC Manager', function(accounts) {
   let owner = accounts[0];
   let owner1 = accounts[1];
   let owner2 = accounts[2];
@@ -19,6 +21,7 @@ contract('ChronoMint', function(accounts) {
   let conf_sign3;
   let txId;
   let watcher;
+  let eventor;
   let unix = Math.round(+new Date()/1000);
   const Status = {maintenance:0,active:1, suspended:2, bankrupt:3};
   const SYMBOL = 'TIME';
@@ -34,9 +37,10 @@ contract('ChronoMint', function(accounts) {
   const fakeArgs = [0,0,0,0,0,0,0,0];
 
   before('setup', function(done) {
-
+    PendingManager.at(MultiEventsHistory.address).then((instance) => {
+      eventor = instance;
       Setup.setup(done);
-
+    });
   });
 
   context("with one CBE key", function(){
@@ -278,18 +282,11 @@ contract('ChronoMint', function(accounts) {
     });
 
     it("allows a CBE to change LOC status.", function() {
-      return Setup.chronoMint.setStatus.call(
+      return Setup.chronoMint.setStatus(
         bytes32("David's Hard Workers"),
-        Status.active, {from:owner}
-      ).then(function(r){
-        return Setup.chronoMint.setStatus(
-          bytes32("David's Hard Workers"),
-          Status.active, {from:owner}).then(function(){
-          return Setup.chronoMint.getLOCById.call(0).then(function(r2){
-            console.log(r,r2);
-            assert.equal(r,false)
-            assert.equal(r2[6], Status.active);
-          });
+        Status.active, {from:owner}).then(function(){
+        return Setup.chronoMint.getLOCById.call(0).then(function(r2){
+          assert.equal(r2[6], Status.active);
         });
       });
     });
@@ -300,20 +297,37 @@ contract('ChronoMint', function(accounts) {
       });
     });
 
-    it("allows CBE member to remove LOC", function() {
+    it("doesn't allow CBE member to remove LOC is loc is active", function() {
       return Setup.chronoMint.removeLOC(bytes32("David's Hard Workers"),{
-        from: accounts[0],
+        from: owner,
         gas: 3000000
       }).then(function() {
         return Setup.chronoMint.getLOCCount.call().then(function(r){
-          assert.equal(r, 0);
+          console.log(r);
+          assert.equal(r, 1);
         });
       });
     });
 
-    it("Removed LOC should decrement LOCs counter", function() {
-      return Setup.chronoMint.getLOCCount.call().then(function(r){
-        assert.equal(r, 0);
+    it("allows a CBE to change LOC status.", function() {
+      return Setup.chronoMint.setStatus(
+        bytes32("David's Hard Workers"),
+        Status.maintenance, {from:owner}).then(function(){
+        return Setup.chronoMint.getLOCById.call(0).then(function(r2){
+          assert.equal(r2[6], Status.maintenance);
+        });
+      });
+    });
+
+    it("allow CBE member to remove LOC is loc is not active", function() {
+      return Setup.chronoMint.removeLOC(bytes32("David's Hard Workers"),{
+        from: owner,
+        gas: 3000000
+      }).then(function() {
+        return Setup.chronoMint.getLOCCount.call().then(function(r){
+          console.log(r);
+          assert.equal(r, 0);
+        });
       });
     });
 
@@ -375,8 +389,8 @@ contract('ChronoMint', function(accounts) {
     });
 
     it("allows to propose pending operation", function() {
-      eventsHelper.setupEvents(Setup.shareable);
-      watcher = Setup.shareable.Confirmation();
+      eventsHelper.setupEvents(eventor);
+      watcher = eventor.Confirmation();
       return Setup.userManager.addCBE(owner2, 0x0, {from:owner}).then(function(txHash) {
         return eventsHelper.getEvents(txHash, watcher);
       }).then(function(events) {
@@ -818,9 +832,22 @@ contract('ChronoMint', function(accounts) {
       return Setup.chronoMint.sendAsset(bytes32('LHT'), owner2, 495049, {
         from: owner,
         gas: 3000000
-      }).then(function () {
-        return Setup.chronoBankAssetWithFeeProxy.balanceOf.call(owner2).then(function (r) {
-          assert.equal(r, 495049);
+      }).then(function (txHash) {
+        return eventsHelper.getEvents(txHash, watcher);
+      }).then(function(events) {
+        console.log(events[0].args.hash);
+        conf_sign = events[0].args.hash;
+        return Setup.shareable.confirm(conf_sign, {from: owner4}).then(function () {
+          return Setup.shareable.confirm(conf_sign, {from: owner1}).then(function () {
+            return Setup.shareable.confirm(conf_sign, {from: owner2}).then(function () {
+              return Setup.shareable.confirm(conf_sign, {from: owner3}).then(function () {
+                return Setup.chronoBankAssetWithFeeProxy.balanceOf.call(owner2).then(function (r) {
+                  console.log(r);
+                  assert.equal(r, 495049);
+                });
+              });
+            });
+          });
         });
       });
     });

@@ -1,41 +1,33 @@
-const Setup = require('../setup/setup');
-const Reverter = require('./helpers/reverter');
-const bytes32 = require('./helpers/bytes32');
-const bytes32fromBase58 = require('./helpers/bytes32fromBase58');
-const Require = require("truffle-require");
-const Config = require("truffle-config");
-const eventsHelper = require('./helpers/eventsHelper');
+const Setup = require('../setup/setup')
+const Reverter = require('./helpers/reverter')
+const bytes32 = require('./helpers/bytes32')
+const bytes32fromBase58 = require('./helpers/bytes32fromBase58')
+const Require = require("truffle-require")
+const Config = require("truffle-config")
+const eventsHelper = require('./helpers/eventsHelper')
+const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
+const PendingManager = artifacts.require("./PendingManager.sol")
 
 contract('Pending Manager', function(accounts) {
-  var owner = accounts[0];
-  var owner1 = accounts[1];
-  var owner2 = accounts[2];
-  var owner3 = accounts[3];
-  var owner4 = accounts[4];
-  var owner5 = accounts[5];
-  var nonOwner = accounts[6];
-  var conf_sign;
-  var conf_sign2;
-  var conf_sign3;
-  var txId;
-  var watcher;
-
-  const SYMBOL = 'TIME';
-  const SYMBOL2 = 'LHT';
-  const NAME = 'Time Token';
-  const DESCRIPTION = 'ChronoBank Time Shares';
-  const NAME2 = 'Labour-hour Token';
-  const DESCRIPTION2 = 'ChronoBank Lht Assets';
-  const BASE_UNIT = 2;
-  const IS_REISSUABLE = true;
-  const IS_NOT_REISSUABLE = false;
-  const BALANCE_ETH = 1000;
-  const fakeArgs = [0,0,0,0,0,0,0,0];
+  let owner = accounts[0];
+  let owner1 = accounts[1];
+  let owner2 = accounts[2];
+  let owner3 = accounts[3];
+  let owner4 = accounts[4];
+  let owner5 = accounts[5];
+  let nonOwner = accounts[6];
+  let conf_sign;
+  let conf_sign2;
+  let conf_sign3;
+  let txId;
+  let watcher;
+  let eventor;
 
   before('setup', function(done) {
-
-    Setup.setup(done);
-
+    PendingManager.at(MultiEventsHistory.address).then((instance) => {
+      eventor = instance;
+      Setup.setup(done);
+    });
   });
 
   context("with one CBE key", function(){
@@ -91,6 +83,7 @@ contract('Pending Manager', function(accounts) {
     it("should allow setRequired signatures 2.", function() {
       return Setup.userManager.setRequired(2).then(function() {
         return Setup.userManager.required.call({from: owner}).then(function(r) {
+          console.log(r);
           assert.equal(r, 2);
         });
       });
@@ -125,11 +118,12 @@ contract('Pending Manager', function(accounts) {
     });
 
     it("allows to propose pending operation", function() {
-      eventsHelper.setupEvents(Setup.shareable);
-      watcher = Setup.shareable.Confirmation();
+      eventsHelper.setupEvents(eventor);
+      watcher = eventor.Confirmation();
       return Setup.userManager.addCBE(owner2, 0x0, {from:owner}).then(function(txHash) {
         return eventsHelper.getEvents(txHash, watcher);
       }).then(function(events) {
+        console.log(events);
         console.log(events[0].args.hash);
         conf_sign = events[0].args.hash;
         Setup.shareable.pendingsCount.call({from: owner}).then(function(r) {

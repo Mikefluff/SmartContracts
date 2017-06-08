@@ -42,7 +42,14 @@ contract AssetsManager is Managed, AssetsManagerEmitter {
     StorageInterface.AddressAddressUIntMapping owners;
     StorageInterface.AddressesSet allOwners;
 
+    event Test(address test);
     //mapping (address => bool) timeHolder;
+
+    modifier assetSymbolDoesNotExists(bytes32 _symbol) {
+        if (store.get(assets,_symbol) == address(0)) {
+            _;
+        }
+    }
 
     modifier onlyAssetOwner(bytes32 _symbol) {
         if(isAssetOwner(_symbol, msg.sender))
@@ -140,14 +147,16 @@ contract AssetsManager is Managed, AssetsManagerEmitter {
         return ChronoBankPlatformInterface(store.get(platform)).revokeAsset(_symbol, _value);
     }
 
-    function addAsset(address asset, bytes32 _symbol, address owner) returns (bool) {
-        if(ChronoBankAssetProxyInterface(asset).chronoBankPlatform() == store.get(platform)) {
-            if(ChronoBankPlatformInterface(store.get(platform)).proxies(_symbol) == asset) {
-                if(ChronoBankPlatformInterface(store.get(platform)).isOwner(this,_symbol)) {
-                    uint8 decimals = ChronoBankPlatformInterface(store.get(platform)).baseUnit(_symbol);
+    function addAsset(address asset, bytes32 _symbol, address owner) assetSymbolDoesNotExists(_symbol) returns (bool) {
+        address _platform = store.get(platform);
+        if(ChronoBankAssetProxyInterface(asset).chronoBankPlatform() == _platform) {
+            if(ChronoBankPlatformInterface(_platform).proxies(_symbol) == asset) {
+                if(ChronoBankPlatformInterface(_platform).isOwner(this,_symbol)) {
+                    uint8 decimals = ChronoBankPlatformInterface(_platform).baseUnit(_symbol);
                     address erc20Manager = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.ERC20Manager);
-                    if(!ERC20Manager(erc20Manager).addToken(asset,'',_symbol,'',decimals,bytes32(0), bytes32(0))) {
-
+                    if(!ERC20Manager(erc20Manager).addToken(asset,_symbol,_symbol,bytes32(0),decimals,bytes32(0), bytes32(0))) {
+                        Test(erc20Manager);
+                        _emitError('Not added to registry');
                     }
                     store.set(assets,_symbol,asset);
                     store.add(assetsSymbols,_symbol);
@@ -160,10 +169,9 @@ contract AssetsManager is Managed, AssetsManagerEmitter {
         return false;
     }
 
-    function createAsset(bytes32 symbol, string name, string description, uint value, uint8 decimals, bool isMint, bool withFee) returns (address) {
-        string memory smbl = bytes32ToString(symbol);
+    function createAsset(bytes32 symbol, string name, string description, uint value, uint8 decimals, bool isMint, bool withFee) assetSymbolDoesNotExists(symbol) returns (address) {
         address erc20Manager = ContractsManagerInterface(store.get(contractsManager)).getContractAddressByType(ContractsManagerInterface.ContractType.ERC20Manager);
-        address token = ERC20Manager(erc20Manager).getTokenAddressBySymbol(smbl);
+        address token = ERC20Manager(erc20Manager).getTokenAddressBySymbol(symbol);
         if(token == address(0)) {
             token = ProxyFactory(store.get(proxyFactory)).createProxy();
             address asset;
@@ -175,11 +183,11 @@ contract AssetsManager is Managed, AssetsManagerEmitter {
                 asset = ProxyFactory(store.get(proxyFactory)).createAsset();
             }
             ChronoBankPlatformInterface(store.get(platform)).setProxy(token, symbol);
-            ChronoBankAssetProxyInterface(token).init(store.get(platform), smbl, name);
+            ChronoBankAssetProxyInterface(token).init(store.get(platform), bytes32ToString(symbol), name);
             ChronoBankAssetProxyInterface(token).proposeUpgrade(asset);
             ChronoBankAsset(asset).init(ChronoBankAssetProxyInterface(token));
-            if(!ERC20Manager(erc20Manager).addToken(token,stringToBytes32(name), symbol, '', decimals, bytes32(0), bytes32(0))) {
-
+            if(!ERC20Manager(erc20Manager).addToken(token, bytes32(0), symbol, bytes32(0), decimals, bytes32(0), bytes32(0))) {
+                _emitError('Not added to registry');
             }
             store.set(assets,symbol,token);
             store.add(assetsSymbols,symbol);
@@ -187,7 +195,7 @@ contract AssetsManager is Managed, AssetsManagerEmitter {
             store.add(allOwners,msg.sender);
             return token;
         }
-        return 0;
+        return;
     }
 
     function startCompain() {
@@ -260,10 +268,8 @@ contract AssetsManager is Managed, AssetsManagerEmitter {
         return string(bytesStringTrimmed);
     }
 
-    function stringToBytes32(string memory source) returns (bytes32 result) {
-        assembly {
-            result := mload(add(source, 32))
-        }
+    function _emitError(bytes32 _message) {
+        AssetsManager(getEventsHistory()).emitError(_message);
     }
 
     function()

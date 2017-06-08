@@ -1,10 +1,12 @@
-var Reverter = require('./helpers/reverter');
-var bytes32 = require('./helpers/bytes32');
-var bytes32fromBase58 = require('./helpers/bytes32fromBase58');
-var Require = require("truffle-require");
-var Config = require("truffle-config");
-var eventsHelper = require('./helpers/eventsHelper');
-var Setup = require('../setup/setup');
+const Reverter = require('./helpers/reverter')
+const bytes32 = require('./helpers/bytes32')
+const bytes32fromBase58 = require('./helpers/bytes32fromBase58')
+const Require = require("truffle-require")
+const Config = require("truffle-config")
+const eventsHelper = require('./helpers/eventsHelper')
+const Setup = require('../setup/setup')
+const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
+const PendingManager = artifacts.require("./PendingManager.sol")
 
 contract('Vote', function(accounts) {
   const owner = accounts[0];
@@ -51,7 +53,10 @@ contract('Vote', function(accounts) {
   }
 
   before('setup', function(done) {
-    Setup.setup(done)
+    PendingManager.at(MultiEventsHistory.address).then((instance) => {
+      eventor = instance;
+      Setup.setup(done);
+    });
   });
 
   context("owner shares deposit", function(){
@@ -152,6 +157,7 @@ contract('Vote', function(accounts) {
     it("should be able to activate Poll", function() {
       return Setup.vote.activatePoll(0, {from: owner}).then(() => {
         return Setup.vote.getActivePollsCount.call().then((r) => {
+          console.log(r);
           assert.equal(r,1)
         })
       })

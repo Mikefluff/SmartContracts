@@ -1,14 +1,13 @@
 const Rewards = artifacts.require("./Rewards.sol");
 const ContractsManager = artifacts.require("./ContractsManager.sol");
-const EventsHistory = artifacts.require("./EventsHistory.sol");
 const TimeHolder = artifacts.require("./TimeHolder.sol");
-const ChronoMintEmitter = artifacts.require("./ChronoMintEmitter.sol");
 const LOCManager = artifacts.require('./LOCManager.sol')
 const FakeCoin = artifacts.require("./FakeCoin.sol");
 const FakeCoin2 = artifacts.require("./FakeCoin2.sol");
 const FakeCoin3 = artifacts.require("./FakeCoin3.sol");
 const UserManager = artifacts.require("./UserManager.sol");
 const AssetsManagerMock = artifacts.require("./AssetsManagerMock.sol");
+const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol');
 const Storage = artifacts.require("./Storage.sol");
 const ManagerMock = artifacts.require('./ManagerMock.sol');
 const Reverter = require('./helpers/reverter');
@@ -22,8 +21,7 @@ contract('Rewards', (accounts) => {
   let timeHolder;
   let storage;
   let userManager;
-  let eventsHistory;
-  let chronoMintEmitter;
+  let multiEventsHistory;
   let assetsManager;
   let chronoMint;
   let shares;
@@ -42,9 +40,8 @@ contract('Rewards', (accounts) => {
     .then(() => timeHolder.init(contractsManager.address, shares.address))
     .then(() => timeHolder.addListener(reward.address))
     .then(() => assetsManager.addAsset(asset1.address, 'LHT', chronoMint.address))
-   // .then(() => reward.setupEventsHistory(eventsHistory.address))
-    //.then(() => eventsHistory.addVersion(reward.address, "Origin", "Initial version."))
-    //.then(() => eventsHistory.addEmitter(chronoMintEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), chronoMintEmitter.address))
+    .then(() => reward.setupEventsHistory(multiEventsHistory.address))
+    .then(() => multiEventsHistory.authorize(reward.address))
   };
 
   let assertSharesBalance = (address, expectedBalance) => {
@@ -115,19 +112,17 @@ contract('Rewards', (accounts) => {
       storage = instance});
     UserManager.deployed().then(function(instance) {
       userManager = instance});
-    EventsHistory.deployed().then(function(instance) {
-      eventsHistory = instance;});
-    ChronoMintEmitter.deployed().then(function(instance) {
-      chronoMintEmitter = instance;});
+    MultiEventsHistory.deployed().then(function(instance) {
+      multiEventsHistory = instance;});
     FakeCoin.deployed().then(function(instance) {
-    shares = instance 
-// init shares
-    shares.mint(accounts[0], SHARES_BALANCE)
-      .then(() => shares.mint(accounts[1], SHARES_BALANCE))
-      .then(() => shares.mint(accounts[2], SHARES_BALANCE))
-      // snapshot
-      .then(() => reverter.snapshot(done))
-      .catch(done);
+      shares = instance
+  // init shares
+      shares.mint(accounts[0], SHARES_BALANCE)
+        .then(() => shares.mint(accounts[1], SHARES_BALANCE))
+        .then(() => shares.mint(accounts[2], SHARES_BALANCE))
+        // snapshot
+        .then(() => reverter.snapshot(done))
+        .catch(done);
   });
     FakeCoin2.deployed().then(function(instance) {
     asset1 = instance;});
@@ -232,9 +227,8 @@ contract('Rewards', (accounts) => {
       .then(() => userManager.init(contractsManager.address))
       .then(() => timeHolder.init(contractsManager.address, shares.address))
       .then(() => timeHolder.addListener(reward.address))
-      //.then(() => reward.setupEventsHistory(eventsHistory.address))
-      //.then(() => eventsHistory.addVersion(reward.address, "Origin", "Initial version."))
-      //.then(() => eventsHistory.addEmitter(chronoMintEmitter.contract.emitError.getData.apply(this, fakeArgs).slice(0, 10), chronoMintEmitter.address))
+      .then(() => reward.setupEventsHistory(multiEventsHistory.address))
+      .then(() => multiEventsHistory.authorize(reward.address))
       .then(() => reward.closePeriod.call())
       .then((res) => assert.isFalse(res))
       .then(() => reward.closePeriod())
