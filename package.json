@@ -22,7 +22,8 @@
   "license": "GPLv3",
   "dependencies": {
     "truffle": "3.2.4",
-    "truffle-hdwallet-provider": "mikefluff/truffle-hdwallet-provider"
+    "truffle-hdwallet-provider": "mikefluff/truffle-hdwallet-provider",
+    "ethereumjs-testrpc": "3.0.5"
   },
   "devDependencies": {
     "@digix/contest": "^0.2.6",
