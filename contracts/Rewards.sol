@@ -178,6 +178,7 @@ contract Rewards is Managed, RewardsEmitter {
      * @return success.
      */
     function closePeriod() returns(bool) {
+
         uint period = lastPeriod();
         if ((store.get(startDate,period) + (store.get(closeInterval) * 1 days)) > now) {
             _emitError("Cannot close period yet");
@@ -194,6 +195,7 @@ contract Rewards is Managed, RewardsEmitter {
                 registerAsset(Asset(assets[i]));
             }
         }
+
         return storeDeposits(0);
     }
 
@@ -241,6 +243,16 @@ contract Rewards is Managed, RewardsEmitter {
         if(store.get(totalShares,period) == TimeHolder(timeHolder).totalShares()) {
             store.set(closed,period,true);
             //eventsHistory.periodClosed(lastClosedPeriod());
+
+            return true;
+        }
+        return false;
+    }
+
+    function addAsset(address _asset) onlyContractOwner returns(bool) {
+        if(_asset != 0x0 && assetsId[_asset] == 0) {
+            assetsId[_asset] = assets.length;
+            assets.push(_asset);
             return true;
         }
         return false;
@@ -291,9 +303,11 @@ contract Rewards is Managed, RewardsEmitter {
      *
      * @return success.
      */
+
     function calculateReward(address _assetAddress) internal returns(bool) {
         return calculateRewardForAddressAndPeriod(_assetAddress, msg.sender, lastClosedPeriod());
     }
+
 
     /**
      * Calculate and distribute reward of a specified registered rewards asset.
@@ -310,6 +324,7 @@ contract Rewards is Managed, RewardsEmitter {
      *
      * @return success.
      */
+
     function calculateRewardFor(address _assetAddress, address _address) internal returns(bool) {
         return calculateRewardForAddressAndPeriod(_assetAddress, _address, lastClosedPeriod());
     }
@@ -326,9 +341,11 @@ contract Rewards is Managed, RewardsEmitter {
      *
      * @return success.
      */
+
     function calculateRewardForPeriod(address _assetAddress, uint _period) internal returns(bool) {
         return calculateRewardForAddressAndPeriod(_assetAddress, msg.sender, _period);
     }
+
 
     /**
      * Calculate and distribute reward of a specified registered rewards asset.
@@ -358,6 +375,7 @@ contract Rewards is Managed, RewardsEmitter {
         uint reward = store.get(assetBalances,_period,_assetAddress) * store.get(shares,_period,_address) / store.get(totalShares,_period);
         store.set(rewards,_assetAddress,_address,store.get(rewards,_assetAddress,_address) + reward);
         store.set(calculated,_period,_assetAddress,_address,true);
+
 
         //eventsHistory.calculateReward(_assetAddress, _address, reward);
         return true;

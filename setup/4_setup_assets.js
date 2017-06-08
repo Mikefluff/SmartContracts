@@ -137,7 +137,6 @@ var setup = function (callback) {
       eventsHistory,
       multiEventsHistory
     ] = instances
-
   }).then(() => {
     console.log('setup storage')
     return storage.setManager(ManagerMock.address)
